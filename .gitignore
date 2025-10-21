@@ -1,5 +1,49 @@
+# Python
 .venv/
 *__pycache__/
 *.pyc
+
+# Backend specific
 /maps/cache
 /backend/maps
+
+# Environment variables
+.env
+.env*.local
+
+# Dependencies
+node_modules/
+
+# Expo/React Native
+.expo/
+dist/
+web-build/
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+
+# Generated folders
+/ios
+/android
+app-example
