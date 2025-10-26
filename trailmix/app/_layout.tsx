@@ -9,6 +9,7 @@ export default function RootLayout() {
   const pathname = usePathname();
   const [ready, setReady] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
+  const [isNavigating, setIsNavigating] = React.useState(false);
 
   React.useEffect(() => {
     console.log("Setting up auth state listener...");
@@ -22,15 +23,33 @@ export default function RootLayout() {
 
   React.useEffect(() => {
     if (!ready) return;
-    const inAuthStack = pathname?.startsWith("/(auth)");
-    console.log("Routing check:", { ready, user: user?.email, pathname, inAuthStack });
     
-    if (!user && !inAuthStack) {
-      console.log("Redirecting to sign-in");
-      router.replace("/(auth)/sign-in");
-    } else if (user && inAuthStack) {
-      console.log("Redirecting to home");
-      router.replace("/");
+    const inAuthStack = pathname?.startsWith("/(auth)");
+    const isMainApp = pathname === "/";
+    
+    console.log("🔍 ROUTING DEBUG:", { 
+      ready, 
+      user: user?.email, 
+      pathname, 
+      inAuthStack,
+      isMainApp,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (!user) {
+      // User is not authenticated
+      if (isMainApp) {
+        console.log("🚨 REDIRECTING: Not authenticated and on main app -> going to auth home");
+        router.replace("/(auth)/home");
+      }
+      // If not authenticated and in auth stack, stay there (allow navigation)
+    } else {
+      // User is authenticated
+      if (inAuthStack) {
+        console.log("🚨 REDIRECTING: Authenticated user in auth stack -> going to main app");
+        router.replace("/");
+      }
+      // If authenticated and on main app, stay there
     }
   }, [ready, user, pathname]);
 

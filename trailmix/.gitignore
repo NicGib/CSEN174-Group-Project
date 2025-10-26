@@ -45,4 +45,5 @@ app-example
 /ios
 /android
 expo-env.d.ts
+.vscode/
 # @end expo-cli

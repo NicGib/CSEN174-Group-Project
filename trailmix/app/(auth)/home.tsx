@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
@@ -77,62 +77,76 @@ export default function SignIn() {
       </View>
 
       <View style={styles.form}>
-        <TextInput
-          placeholder="Email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-          editable={!loading}
-        />
-
-        <TextInput
-          placeholder="Password (≥ 6 chars)"
-          secureTextEntry
-          value={pw}
-          onChangeText={setPw}
-          style={styles.input}
-          editable={!loading}
-        />
 
         {err ? <Text style={styles.errorText}>{err}</Text> : null}
 
         <View style={styles.buttonContainer}>
-          <Button 
-            title={loading ? "Signing in..." : "Sign In"} 
-            onPress={login}
+          <TouchableOpacity 
+            style={[styles.baseButton, styles.primaryButton]}
+            onPress={() => {
+              console.log("Sign In button pressed, navigating to /(auth)/sign-in");
+              router.push("/(auth)/sign-in");
+            }}
             disabled={loading}
-            color="#3498db"
-          />
-          <Button 
-            title={loading ? "Creating..." : "Create Account"} 
-            onPress={signup}
+          >
+            <Text style={styles.primaryButtonText}>
+              Sign In
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.baseButton, styles.secondaryButton]}
+            onPress={() => {
+              console.log("Create Account button pressed, navigating to /(auth)/sign-up");
+              router.push("/(auth)/sign-up");
+            }}
             disabled={loading}
-            color="#9b59b6"
-          />
+          >
+            <Text style={styles.secondaryButtonText}>
+              Create Account
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {loading && <ActivityIndicator style={styles.loader} />}
-        
-        <Button 
-          title="Test Manual Redirect" 
-          onPress={() => {
-            console.log("Testing manual redirect to home");
-            router.replace("/");
-          }}
-          color="#ff8800"
-        />
       </View>
 
-      <Text style={styles.footerText}>
-        Email/Password authentication must be enabled in Firebase Console.
-      </Text>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  baseButton: {
+    width: '100%',
+    borderRadius: 40,        // big radius = pill
+    paddingVertical: 18,     // vertical height
+    paddingHorizontal: 24,   // horizontal breathing room
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  primaryButton: {
+    backgroundColor: theme.colors.secondary.light, // cream fill
+  },
+
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: theme.colors.secondary.light,     // cream border
+  },
+
+  primaryButtonText: {
+    color: theme.colors.primary.dark,              // dark green text
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  secondaryButtonText: {
+    color: theme.colors.secondary.light,           // cream text
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
   container: {
     flex: 1,
     padding: 24,

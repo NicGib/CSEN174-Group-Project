@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Button, StyleSheet, Alert } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { auth } from "../src/lib/firebase";
 import { signOut } from "firebase/auth";
 
@@ -34,7 +35,7 @@ export default function Home() {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={["#617337", "#455429"]} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Welcome to TrailMix!</Text>
         <Text style={styles.subtitle}>Your hiking companion</Text>
@@ -53,7 +54,7 @@ export default function Home() {
           color="#ff4444"
         />
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
