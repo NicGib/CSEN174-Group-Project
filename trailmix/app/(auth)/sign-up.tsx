@@ -5,20 +5,23 @@ import {
   signInWithEmailAndPassword
 } from "firebase/auth";
 import { auth } from "../../src/lib/firebase";
+import { createUserProfile } from "../../src/lib/userService";
 import { useRouter } from "expo-router";
 import { theme } from "../theme";
 import { LinearGradient } from "expo-linear-gradient";
 
-export default function SignIn() {
+export default function SignUp() {
   const [email, setEmail] = React.useState("");
   const [pw, setPw] = React.useState("");
+  const [name, setName] = React.useState("");
+  const [username, setUsername] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const router = useRouter();
 
   const signup = async () => {
-    if (!email.trim() || !pw) {
-      setErr("Please enter both email and password");
+    if (!email.trim() || !pw || !name.trim() || !username.trim()) {
+      setErr("Please fill in all fields");
       return;
     }
     
@@ -28,8 +31,20 @@ export default function SignIn() {
       console.log("Attempting to create user with email:", email.trim());
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pw);
       console.log("User created successfully:", userCredential.user.email);
+      
+      // Create user profile in Firestore
+      await createUserProfile(userCredential.user, {
+        name: name.trim(),
+        username: username.trim()
+      });
+      console.log("User profile created in Firestore");
+      
+      // Clear form
       setEmail("");
       setPw("");
+      setName("");
+      setUsername("");
+      
       setTimeout(() => {
         console.log("Manual redirect to home after signup");
         router.replace("/");
@@ -73,10 +88,27 @@ export default function SignIn() {
     <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>TrailMix</Text>
-        <Text style={styles.subtitle}>Sign in to start your hiking journey!</Text>
+        <Text style={styles.subtitle}>Create your account to start your hiking journey!</Text>
       </View>
 
       <View style={styles.form}>
+        <TextInput
+          placeholder="Full Name"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          editable={!loading}
+        />
+
+        <TextInput
+          placeholder="Username"
+          autoCapitalize="none"
+          value={username}
+          onChangeText={setUsername}
+          style={styles.input}
+          editable={!loading}
+        />
+
         <TextInput
           placeholder="Email"
           autoCapitalize="none"

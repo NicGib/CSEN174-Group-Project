@@ -48,3 +48,4 @@ yarn-error.*
 app-example
 *.map
 *.flow
+backend/accounts/serviceAccountKey.json
