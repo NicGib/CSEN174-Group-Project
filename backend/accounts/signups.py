@@ -75,14 +75,14 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
             "bio": "",
             "profilePicture": ""
         })
-        print(f"✅ New user profile created for {name} ({username})")
+        print(f"New user profile created for {name} ({username})")
     else:
         # Update existing user's last login
         doc_ref.update({
             "lastLoginAt": firestore.SERVER_TIMESTAMP,
             "isActive": True
         })
-        print(f"✅ Last login updated for existing user {name} ({username})")
+        print(f"Last login updated for existing user {name} ({username})")
 
 # ─────────────────────────
 # 3. SIGN UP FLOW
@@ -92,7 +92,7 @@ def signup_with_email_password(name: str, username: str, email: str, password: s
     Backend version of frontend signup functionality.
     Creates Firebase Auth user and Firestore profile.
     """
-    print(f"\n🚀 Starting signup process for {name} ({email})")
+    print(f"\nStarting signup process for {name} ({email})")
     
     # Validation (matching frontend validation)
     if not name.strip() or not username.strip() or not email.strip() or not password:
@@ -106,34 +106,34 @@ def signup_with_email_password(name: str, username: str, email: str, password: s
         raise ValueError(f"Username '{username}' is already taken. Please choose another one.")
 
     try:
-        print("📝 Creating Firebase Auth user...")
+        print("Creating Firebase Auth user...")
         user_record = auth.create_user(
             email=email.strip().lower(),
             password=password,
             display_name=name.strip(),
         )
-        print(f"✅ Firebase Auth user created: {user_record.uid}")
+        print(f"Firebase Auth user created: {user_record.uid}")
     except Exception as e:
-        print(f"❌ Firebase Auth creation failed: {e}")
+        print(f"Firebase Auth creation failed: {e}")
         raise RuntimeError(f"Signup failed: {e}")
 
     uid = user_record.uid
 
     try:
-        print("💾 Creating Firestore user profile...")
+        print("Creating Firestore user profile...")
         create_user_profile(
             uid=uid,
             name=name,
             username=username,
             email=email,
         )
-        print("✅ Firestore profile created successfully")
+        print("Firestore profile created successfully")
     except Exception as e:
-        print(f"❌ Firestore profile creation failed: {e}")
+        print(f"Firestore profile creation failed: {e}")
         # Clean up: delete the auth user to avoid stranded account
         try:
             auth.delete_user(uid)
-            print("🧹 Cleaned up Firebase Auth user due to Firestore failure")
+            print("Cleaned up Firebase Auth user due to Firestore failure")
         except:
             pass
         raise RuntimeError(f"Profile creation failed (user rolled back): {e}")
@@ -156,7 +156,7 @@ def login_with_email_password(email: str, password: str):
     Backend version of frontend login functionality.
     Authenticates user and updates last login in Firestore.
     """
-    print(f"\n🔐 Starting login process for {email}")
+    print(f"\nStarting login process for {email}")
     
     # Validation (matching frontend validation)
     if not email.strip() or not password:
@@ -174,26 +174,26 @@ def login_with_email_password(email: str, password: str):
     }
 
     try:
-        print("🔑 Authenticating with Firebase...")
+        print("Authenticating with Firebase...")
         resp = requests.post(endpoint, json=payload)
 
         if resp.status_code != 200:
             data = resp.json()
             err_code = data.get("error", {}).get("message", "UNKNOWN")
-            print(f"❌ Authentication failed: {err_code}")
+            print(f"Authentication failed: {err_code}")
             raise RuntimeError(f"Login failed: {err_code}")
 
         data = resp.json()
         uid = data["localId"]
-        print(f"✅ Authentication successful: {uid}")
+        print(f"Authentication successful: {uid}")
 
     except requests.RequestException as e:
-        print(f"❌ Network error during authentication: {e}")
+        print(f"Network error during authentication: {e}")
         raise RuntimeError(f"Login failed: Network error - {e}")
 
     # Get user profile to update last login
     try:
-        print("📊 Updating user profile in Firestore...")
+        print("Updating user profile in Firestore...")
         doc_ref = _user_doc_ref(uid)
         user_doc = doc_ref.get()
         
@@ -209,9 +209,9 @@ def login_with_email_password(email: str, password: str):
                 username=username,
                 email=email,
             )
-            print(f"✅ Last login updated for {name} ({username})")
+            print(f"Last login updated for {name} ({username})")
         else:
-            print("⚠️  User profile not found in Firestore, creating basic profile...")
+            print("User profile not found in Firestore, creating basic profile...")
             # Create a basic profile if it doesn't exist
             create_user_profile(
                 uid=uid,
@@ -221,7 +221,7 @@ def login_with_email_password(email: str, password: str):
             )
             
     except Exception as e:
-        print(f"⚠️  Login succeeded but Firestore update failed: {e}")
+        print(f"Login succeeded but Firestore update failed: {e}")
         # Don't fail the login if Firestore update fails
         pass
 
@@ -249,14 +249,14 @@ def get_user_profile(uid: str):
         else:
             return None
     except Exception as e:
-        print(f"❌ Error getting user profile: {e}")
+        print(f"Error getting user profile: {e}")
         return None
 
 def list_all_users():
     """List all users in the database (for testing)"""
     try:
         users = db.collection("users").stream()
-        print("\n📋 All users in database:")
+        print("\nAll users in database:")
         print("-" * 50)
         for user in users:
             data = user.to_dict()
@@ -268,14 +268,14 @@ def list_all_users():
             print(f"Last Login: {data.get('lastLoginAt', 'N/A')}")
             print("-" * 50)
     except Exception as e:
-        print(f"❌ Error listing users: {e}")
+        print(f"Error listing users: {e}")
 
 # ─────────────────────────
 # 6. Interactive CLI test
 # ─────────────────────────
 def interactive_test():
     """Interactive testing interface"""
-    print("🎯 TrailMix Backend Authentication Test")
+    print("TrailMix Backend Authentication Test")
     print("=" * 50)
     
     while True:
@@ -289,7 +289,7 @@ def interactive_test():
         choice = input("\nEnter your choice (1-5): ").strip()
         
         if choice == "1":
-            print("\n📝 SIGN UP")
+            print("\nSIGN UP")
             print("-" * 20)
             name = input("Full Name: ").strip()
             username = input("Username: ").strip()
@@ -298,45 +298,45 @@ def interactive_test():
             
             try:
                 result = signup_with_email_password(name, username, email, password)
-                print(f"\n✅ SUCCESS: {json.dumps(result, indent=2)}")
+                print(f"\nSUCCESS: {json.dumps(result, indent=2)}")
             except Exception as e:
-                print(f"\n❌ ERROR: {e}")
+                print(f"\nERROR: {e}")
                 
         elif choice == "2":
-            print("\n🔐 LOGIN")
+            print("\nLOGIN")
             print("-" * 20)
             email = input("Email: ").strip()
             password = input("Password: ").strip()
             
             try:
                 result = login_with_email_password(email, password)
-                print(f"\n✅ SUCCESS: {json.dumps(result, indent=2)}")
+                print(f"\nSUCCESS: {json.dumps(result, indent=2)}")
             except Exception as e:
-                print(f"\n❌ ERROR: {e}")
+                print(f"\nERROR: {e}")
                 
         elif choice == "3":
-            print("\n👤 GET USER PROFILE")
+            print("\nGET USER PROFILE")
             print("-" * 20)
             uid = input("User UID: ").strip()
             
             profile = get_user_profile(uid)
             if profile:
-                print(f"\n✅ PROFILE: {json.dumps(profile, indent=2, default=str)}")
+                print(f"\nPROFILE: {json.dumps(profile, indent=2, default=str)}")
             else:
-                print("\n❌ User not found")
+                print("\nUser not found")
                 
         elif choice == "4":
             list_all_users()
             
         elif choice == "5":
-            print("\n👋 Goodbye!")
+            print("\nGoodbye!")
             break
             
         else:
-            print("\n❌ Invalid choice. Please try again.")
+            print("\nInvalid choice. Please try again.")
 
 if __name__ == "__main__":
-    print("🚀 Starting TrailMix Backend Authentication System")
+    print("Starting TrailMix Backend Authentication System")
     print("=" * 60)
     
     # Run interactive test
