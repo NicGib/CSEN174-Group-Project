@@ -1,9 +1,10 @@
+# Python
 .venv/
 *__pycache__/
 *.pyc
-<<<<<<< Updated upstream
+
+# Backend specific
 /maps/cache
-=======
 
 # Backend specific
 */maps/cache
@@ -53,4 +54,3 @@ yarn-error.*
 /android
 app-example
 .vscode/
->>>>>>> Stashed changes
