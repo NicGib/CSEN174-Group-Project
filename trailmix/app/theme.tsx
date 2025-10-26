@@ -118,6 +118,7 @@ export const theme = {
             },
         },
     },
+<<<<<<< HEAD
     
     // Component Styles
     components: {
@@ -257,5 +258,59 @@ export const theme = {
         actions: {
             marginTop: 'auto',
         },
+=======
+    container: {
+        flex: 1,
+        padding: 24,
+        backgroundColor: '#f5f5f5',
+    },
+    header: {
+        alignItems: 'center',
+        marginBottom: 40,
+        marginTop: 60,
+    },
+    title: {
+        fontSize: 48,
+        fontWeight: '800',
+        color: 'theme.colors.secondary.light',
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: '#7f8c8d',
+        textAlign: 'center',
+    },
+    form: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#bdc3c7',
+        borderRadius: 10,
+        padding: 15,
+        marginBottom: 15,
+        backgroundColor: 'white',
+        fontSize: 16,
+    },
+    buttonContainer: {
+        gap: 10,
+        marginTop: 20,
+    },
+    errorText: {
+        color: '#e74c3c',
+        textAlign: 'center',
+        marginBottom: 10,
+        fontSize: 14,
+    },
+    loader: {
+        marginTop: 20,
+    },
+    footerText: {
+        color: '#7f8c8d',
+        textAlign: 'center',
+        fontSize: 12,
+        marginBottom: 20,
+>>>>>>> main
     },
 }
