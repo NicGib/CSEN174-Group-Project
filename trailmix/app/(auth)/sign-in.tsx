@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword
 } from "firebase/auth";
 import { auth } from "../../src/lib/firebase";
+import { updateLastLogin } from "../../src/lib/userService";
 import { useRouter } from "expo-router";
 import { theme } from "../theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -54,6 +55,11 @@ export default function SignIn() {
       console.log("Attempting to sign in with email:", email.trim());
       const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pw);
       console.log("User signed in successfully:", userCredential.user.email);
+      
+      // Update last login time in Firestore
+      await updateLastLogin(userCredential.user.uid);
+      console.log("Last login updated in Firestore");
+      
       setEmail("");
       setPw("");
       setTimeout(() => {
