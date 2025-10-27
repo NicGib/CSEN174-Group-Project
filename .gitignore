@@ -50,3 +50,4 @@ app-example
 *.flow
 backend/accounts/serviceAccountKey.json
 backend/setup_env.py
+backend/SETUP_GUIDE.md
