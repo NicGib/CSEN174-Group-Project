@@ -49,3 +49,4 @@ app-example
 *.map
 *.flow
 backend/accounts/serviceAccountKey.json
+backend/setup_env.py
