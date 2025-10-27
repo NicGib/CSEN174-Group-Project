@@ -8,3 +8,4 @@
 /trailmix/.gitignore
 /trailmix/.gitignore
 /trailmix/node_modules/
+backend/accounts/serviceAccountKey.json
