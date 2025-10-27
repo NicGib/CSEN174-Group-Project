@@ -2,3 +2,9 @@
 *__pycache__/
 *.pyc
 /maps/cache
+.env
+/trailmix/.expo/
+/trailmix/.vscode/
+/trailmix/.gitignore
+/trailmix/.gitignore
+/trailmix/node_modules/
