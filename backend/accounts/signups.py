@@ -5,6 +5,7 @@ from firebase_admin import credentials, auth, firestore
 from datetime import datetime
 import json
 import os
+import unicodedata
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -37,6 +38,18 @@ db = firestore.client()
 def _now_ms() -> int:
     return int(time.time() * 1000)
 
+def _normalize_username(username: str) -> str:
+    """
+    Normalizes a username by:
+    1. Stripping whitespace
+    2. Converting to lowercase
+    3. Normalizing Unicode characters (handles different encodings of the same character)
+    
+    This prevents issues where visually identical usernames with different Unicode
+    encodings (like "josé" vs "josé") are treated as different usernames.
+    """
+    return unicodedata.normalize('NFC', username.strip().lower())
+
 def _user_doc_ref(uid: str):
     return db.collection("users").document(uid)
 
@@ -44,8 +57,11 @@ def _is_username_taken(username: str) -> bool:
     """
     Checks if a given username already exists in Firestore.
     Returns True if taken, False if available.
+    
+    Uses Unicode normalization to handle different encodings of the same character.
     """
-    existing = db.collection("users").where("username", "==", username.strip().lower()).limit(1).get()
+    normalized_username = _normalize_username(username)
+    existing = db.collection("users").where("username", "==", normalized_username).limit(1).get()
     return len(existing) > 0
 
 def create_user_profile(uid: str, name: str, username: str, email: str):
@@ -62,7 +78,7 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
         doc_ref.set({
             "uid": uid,
             "name": name.strip(),
-            "username": username.strip().lower(),
+            "username": _normalize_username(username),
             "email": email.strip().lower(),
             "createdAt": firestore.SERVER_TIMESTAMP,
             "lastLoginAt": firestore.SERVER_TIMESTAMP,
