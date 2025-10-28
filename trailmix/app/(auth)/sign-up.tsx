@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Button, ActivityIndicator } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
@@ -7,7 +7,7 @@ import {
 import { auth } from "../../src/lib/firebase";
 import { createUserProfile } from "../../src/lib/userService";
 import { useRouter } from "expo-router";
-import { theme } from "../theme";
+import { theme, styles } from "../theme";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function SignUp() {
@@ -85,18 +85,18 @@ export default function SignUp() {
 
 
   return (
-    <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>TrailMix</Text>
-        <Text style={styles.subtitle}>Create your account to start your hiking journey!</Text>
+    <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.authContainer}>
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>TrailMix</Text>
+        <Text style={styles.authSubtitle}>Create your account to start your hiking journey!</Text>
       </View>
 
-      <View style={styles.form}>
+      <View style={styles.authForm}>
         <TextInput
           placeholder="Full Name"
           value={name}
           onChangeText={setName}
-          style={styles.input}
+          style={styles.authInput}
           editable={!loading}
         />
 
@@ -105,7 +105,7 @@ export default function SignUp() {
           autoCapitalize="none"
           value={username}
           onChangeText={setUsername}
-          style={styles.input}
+          style={styles.authInput}
           editable={!loading}
         />
 
@@ -115,7 +115,7 @@ export default function SignUp() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
-          style={styles.input}
+          style={styles.authInput}
           editable={!loading}
         />
 
@@ -124,13 +124,13 @@ export default function SignUp() {
           secureTextEntry
           value={pw}
           onChangeText={setPw}
-          style={styles.input}
+          style={styles.authInput}
           editable={!loading}
         />
 
         {err ? <Text style={styles.errorText}>{err}</Text> : null}
 
-        <View style={styles.buttonContainer}>
+        <View style={styles.authButtonContainer}>
           <Button 
             title={loading ? "Signing in..." : "Sign In"} 
             onPress={login}
@@ -157,65 +157,9 @@ export default function SignUp() {
         />
       </View>
 
-      <Text style={styles.footerText}>
+      <Text style={styles.authFooterText}>
         Email/Password authentication must be enabled in Firebase Console.
       </Text>
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 60,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: theme.colors.secondary.light,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    textAlign: 'center',
-  },
-  form: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#bdc3c7',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    backgroundColor: 'white',
-    fontSize: 16,
-  },
-  buttonContainer: {
-    gap: 10,
-    marginTop: 20,
-  },
-  errorText: {
-    color: '#e74c3c',
-    textAlign: 'center',
-    marginBottom: 10,
-    fontSize: 14,
-  },
-  loader: {
-    marginTop: 20,
-  },
-  footerText: {
-    color: '#7f8c8d',
-    textAlign: 'center',
-    fontSize: 12,
-    marginBottom: 20,
-  },
-});
