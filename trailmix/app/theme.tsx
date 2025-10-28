@@ -303,7 +303,7 @@ export const styles = StyleSheet.create({
     },
     authForm: {
         flex: 1,
-        justifyContent: 'center',
+        justifyContent: 'flex-end',
     },
     authInput: {
         borderWidth: 1,

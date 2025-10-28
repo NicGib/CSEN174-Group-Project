@@ -83,9 +83,10 @@ export default function SignIn() {
       </View>
 
       <View style={styles.authForm}>
+        <Text style={{ color: theme.colors.secondary.light }}>Username</Text>
         <TextInput
           placeholder="Email"
-          placeholderTextColor={theme.colors.secondary.light}
+          placeholderTextColor={theme.colors.neutraldark.light}
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
@@ -94,16 +95,17 @@ export default function SignIn() {
           editable={!loading}
         />
 
+        <Text style={{ color: theme.colors.secondary.light }}>Password</Text>
         <TextInput
           placeholder="Password (≥ 6 chars)"
-          placeholderTextColor={theme.colors.secondary.light}
+          placeholderTextColor={theme.colors.neutraldark.light}
           secureTextEntry
           value={pw}
           onChangeText={setPw}
           style={styles.authInput}
           editable={!loading}
         />
-        <Text style={styles.authFooterText}>
+        <Text style={{...styles.authFooterText, textAlign: 'left'}}>
           <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/resend-password">Forgot Password?</Link>
         </Text>
       </View>

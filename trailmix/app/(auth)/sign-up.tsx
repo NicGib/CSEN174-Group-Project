@@ -1,12 +1,12 @@
 import React from "react";
-import { View, Text, TextInput, Button, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Button, ActivityIndicator, TouchableOpacity } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from "firebase/auth";
 import { auth } from "../../src/lib/firebase";
 import { createUserProfile } from "../../src/lib/userService";
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { theme, styles } from "../theme";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -24,27 +24,27 @@ export default function SignUp() {
       setErr("Please fill in all fields");
       return;
     }
-    
-    setErr(null); 
+
+    setErr(null);
     setLoading(true);
     try {
       console.log("Attempting to create user with email:", email.trim());
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pw);
       console.log("User created successfully:", userCredential.user.email);
-      
+
       // Create user profile in Firestore
       await createUserProfile(userCredential.user, {
         name: name.trim(),
         username: username.trim()
       });
       console.log("User profile created in Firestore");
-      
+
       // Clear form
       setEmail("");
       setPw("");
       setName("");
       setUsername("");
-      
+
       setTimeout(() => {
         console.log("Manual redirect to home after signup");
         router.replace("/");
@@ -62,8 +62,8 @@ export default function SignUp() {
       setErr("Please enter both email and password");
       return;
     }
-    
-    setErr(null); 
+
+    setErr(null);
     setLoading(true);
     try {
       console.log("Attempting to sign in with email:", email.trim());
@@ -94,6 +94,7 @@ export default function SignUp() {
       <View style={styles.authForm}>
         <TextInput
           placeholder="Full Name"
+          placeholderTextColor={theme.colors.neutraldark.light}
           value={name}
           onChangeText={setName}
           style={styles.authInput}
@@ -102,6 +103,7 @@ export default function SignUp() {
 
         <TextInput
           placeholder="Username"
+          placeholderTextColor={theme.colors.neutraldark.light}
           autoCapitalize="none"
           value={username}
           onChangeText={setUsername}
@@ -111,6 +113,7 @@ export default function SignUp() {
 
         <TextInput
           placeholder="Email"
+          placeholderTextColor={theme.colors.neutraldark.light}
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
@@ -121,45 +124,30 @@ export default function SignUp() {
 
         <TextInput
           placeholder="Password (≥ 6 chars)"
+          placeholderTextColor={theme.colors.neutraldark.light}
           secureTextEntry
           value={pw}
           onChangeText={setPw}
           style={styles.authInput}
           editable={!loading}
         />
-
-        {err ? <Text style={styles.errorText}>{err}</Text> : null}
-
-        <View style={styles.authButtonContainer}>
-          <Button 
-            title={loading ? "Signing in..." : "Sign In"} 
-            onPress={login}
-            disabled={loading}
-            color="#3498db"
-          />
-          <Button 
-            title={loading ? "Creating..." : "Create Account"} 
-            onPress={signup}
-            disabled={loading}
-            color="#9b59b6"
-          />
-        </View>
-
-        {loading && <ActivityIndicator style={styles.loader} />}
-        
-        <Button 
-          title="Test Manual Redirect" 
-          onPress={() => {
-            console.log("Testing manual redirect to home");
-            router.replace("/");
-          }}
-          color="#ff8800"
-        />
+        {err ? <Text style={styles.errorText}>{err}</Text> : null}   
       </View>
-
-      <Text style={styles.authFooterText}>
-        Email/Password authentication must be enabled in Firebase Console.
-      </Text>
+      <View style={styles.authButtonContainer}>
+        {/* SIGN IN (primary button) */}
+        <TouchableOpacity
+          style={[styles.baseButton, styles.primaryButton, styles.landingButton]}
+          onPress={signup}
+          disabled={loading}
+        >
+          <Text style={styles.primaryButtonText}>
+            {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.authFooterText}>
+          Already have an account? <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/sign-in">Sign in</Link>
+        </Text>
+      </View>
     </LinearGradient>
   );
 }
