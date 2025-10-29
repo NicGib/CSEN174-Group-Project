@@ -13,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 export default function SignUp() {
   const [email, setEmail] = React.useState("");
   const [pw, setPw] = React.useState("");
+  const [confirmPw, setConfirmPw] = React.useState("");
   const [name, setName] = React.useState("");
   const [username, setUsername] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -20,8 +21,13 @@ export default function SignUp() {
   const router = useRouter();
 
   const signup = async () => {
-    if (!email.trim() || !pw || !name.trim() || !username.trim()) {
+    if (!email.trim() || !pw || !confirmPw || !name.trim() || !username.trim()) {
       setErr("Please fill in all fields");
+      return;
+    }
+
+    if (pw !== confirmPw) {
+      setErr("Passwords do not match");
       return;
     }
 
@@ -42,6 +48,7 @@ export default function SignUp() {
       // Clear form
       setEmail("");
       setPw("");
+      setConfirmPw("");
       setName("");
       setUsername("");
 
@@ -87,13 +94,14 @@ export default function SignUp() {
   return (
     <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.authContainer}>
       <View style={styles.authHeader}>
-        <Text style={styles.authTitle}>TrailMix</Text>
-        <Text style={styles.authSubtitle}>Create your account to start your hiking journey!</Text>
+        <Text style={styles.authTitle}>Trail Mix</Text>
+        <Text style={styles.authSubtitle}>Create an account to get started.</Text>
       </View>
 
       <View style={styles.authForm}>
+        <Text style={styles.authFormLabel}>Name</Text>
         <TextInput
-          placeholder="Full Name"
+          placeholder="Name"
           placeholderTextColor={theme.colors.neutraldark.light}
           value={name}
           onChangeText={setName}
@@ -101,6 +109,7 @@ export default function SignUp() {
           editable={!loading}
         />
 
+        <Text style={styles.authFormLabel}>Username</Text>
         <TextInput
           placeholder="Username"
           placeholderTextColor={theme.colors.neutraldark.light}
@@ -111,6 +120,7 @@ export default function SignUp() {
           editable={!loading}
         />
 
+        <Text style={styles.authFormLabel}>Email</Text>
         <TextInput
           placeholder="Email"
           placeholderTextColor={theme.colors.neutraldark.light}
@@ -122,12 +132,22 @@ export default function SignUp() {
           editable={!loading}
         />
 
+        <Text style={styles.authFormLabel}>Password</Text>
         <TextInput
           placeholder="Password (≥ 6 chars)"
           placeholderTextColor={theme.colors.neutraldark.light}
           secureTextEntry
           value={pw}
           onChangeText={setPw}
+          style={styles.authInput}
+          editable={!loading}
+        />
+        <TextInput
+          placeholder="Confirm Password"
+          placeholderTextColor={theme.colors.neutraldark.light}
+          secureTextEntry
+          value={confirmPw}
+          onChangeText={setConfirmPw}
           style={styles.authInput}
           editable={!loading}
         />

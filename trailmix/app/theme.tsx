@@ -38,27 +38,27 @@ export const theme = {
         heading: {
             h1: {
                 fontSize: 24,
-                fontWeight: '800', // "Extra bold"
+                fontWeight: '800' as const, // "Extra bold"
                 lineHeight: 28,
             },
             h2: {
                 fontSize: 18,
-                fontWeight: '800',
+                fontWeight: '800' as const,
                 lineHeight: 22,
             },
             h3: {
                 fontSize: 16,
-                fontWeight: '800',
+                fontWeight: '800' as const,
                 lineHeight: 20,
             },
             h4: {
                 fontSize: 14,
-                fontWeight: '700', // "Bold"
+                fontWeight: '700' as const, // "Bold"
                 lineHeight: 18,
             },
             h5: {
                 fontSize: 12,
-                fontWeight: '700',
+                fontWeight: '700' as const,
                 lineHeight: 16,
             },
         },
@@ -66,27 +66,27 @@ export const theme = {
         body: {
             xl: {
                 fontSize: 18,
-                fontWeight: '400', // "Regular"
+                fontWeight: '400' as const, // "Regular"
                 lineHeight: 24,
             },
             l: {
                 fontSize: 16,
-                fontWeight: '400',
+                fontWeight: '400' as const,
                 lineHeight: 22,
             },
             m: {
                 fontSize: 14,
-                fontWeight: '400',
+                fontWeight: '400' as const,
                 lineHeight: 18,
             },
             s: {
                 fontSize: 12,
-                fontWeight: '400',
+                fontWeight: '400' as const,
                 lineHeight: 16,
             },
             xs: {
                 fontSize: 10,
-                fontWeight: '500', // "Medium"
+                fontWeight: '500' as const, // "Medium"
                 lineHeight: 12,
             },
         },
@@ -94,19 +94,19 @@ export const theme = {
         action: {
             l: {
                 fontSize: 14,
-                fontWeight: '600', // "Semi Bold"
+                fontWeight: '600' as const, // "Semi Bold"
                 lineHeight: 16,
                 textTransform: 'uppercase',
             },
             m: {
                 fontSize: 12,
-                fontWeight: '600',
+                fontWeight: '600' as const,
                 lineHeight: 14,
                 textTransform: 'uppercase',
             },
             s: {
                 fontSize: 10,
-                fontWeight: '600',
+                fontWeight: '600' as const,
                 lineHeight: 12,
                 textTransform: 'uppercase',
             },
@@ -115,7 +115,7 @@ export const theme = {
         caption: {
             m: {
                 fontSize: 10,
-                fontWeight: '600', // Semi Bold
+                fontWeight: '600' as const, // Semi Bold
                 lineHeight: 12,
             },
         },
@@ -287,13 +287,13 @@ export const styles = StyleSheet.create({
     },
     authHeader: {
         alignItems: 'center',
-        marginBottom: 40,
         marginTop: 60,
+        marginBottom: 24,
     },
     authTitle: {
-        fontSize: 48,
-        fontWeight: '700',
-        color: '#FCFAE1',
+        fontSize: theme.typography.heading.h1.fontSize,
+        fontWeight: theme.typography.heading.h1.fontWeight,
+        color: theme.colors.secondary.light,
         marginBottom: 8,
     },
     authSubtitle: {
@@ -301,22 +301,27 @@ export const styles = StyleSheet.create({
         color: '#7f8c8d',
         textAlign: 'center',
     },
+    authFormLabel: {
+        color: theme.colors.secondary.light,
+        fontSize: theme.typography.heading.h5.fontSize,
+        fontWeight: theme.typography.heading.h5.fontWeight,
+        lineHeight: theme.typography.heading.h5.lineHeight,
+        marginBottom: 8
+    },
     authForm: {
         flex: 1,
-        justifyContent: 'flex-end',
+        /*justifyContent: 'flex-end',*/
     },
     authInput: {
         borderWidth: 1,
         borderRadius: 10,
         padding: 15,
         color: theme.colors.secondary.light,
-        marginBottom: 15,
+        marginBottom: 8,
         borderColor: theme.colors.secondary.light,
         fontSize: 16,
     },
     authButtonContainer: {
-        gap: 10,
-        marginTop: 20,
     },
     authFooterText: {
         color: '#7f8c8d',

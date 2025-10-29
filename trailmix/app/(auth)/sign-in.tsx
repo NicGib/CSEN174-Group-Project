@@ -78,12 +78,11 @@ export default function SignIn() {
   return (
     <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.authContainer}>
       <View style={styles.authHeader}>
-        <Text style={styles.authTitle}>TrailMix</Text>
-        <Text style={styles.authSubtitle}>Sign in to start your hiking journey!</Text>
+        <Text style={styles.authTitle}>Trail Mix</Text>
       </View>
 
       <View style={styles.authForm}>
-        <Text style={{ color: theme.colors.secondary.light }}>Username</Text>
+        <Text style={styles.authFormLabel}>Username</Text>
         <TextInput
           placeholder="Email"
           placeholderTextColor={theme.colors.neutraldark.light}
@@ -95,7 +94,7 @@ export default function SignIn() {
           editable={!loading}
         />
 
-        <Text style={{ color: theme.colors.secondary.light }}>Password</Text>
+        <Text style={styles.authFormLabel}>Password</Text>
         <TextInput
           placeholder="Password (≥ 6 chars)"
           placeholderTextColor={theme.colors.neutraldark.light}
