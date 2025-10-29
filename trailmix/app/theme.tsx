@@ -1,4 +1,93 @@
 import { StyleSheet } from 'react-native';
+// Typography definitions - centralized for better performance and maintainability
+export const typography = {
+    // Headings
+    headingH1: {
+        fontSize: 24,
+        fontWeight: '800' as const,
+        lineHeight: 28,
+    },
+    headingH2: {
+        fontSize: 18,
+        fontWeight: '800' as const,
+        lineHeight: 22,
+    },
+    headingH3: {
+        fontSize: 16,
+        fontWeight: '800' as const,
+        lineHeight: 20,
+    },
+    headingH4: {
+        fontSize: 14,
+        fontWeight: '700' as const,
+        lineHeight: 18,
+    },
+    headingH5: {
+        fontSize: 12,
+        fontWeight: '700' as const,
+        lineHeight: 16,
+    },
+
+    // Body text
+    bodyXL: {
+        fontSize: 18,
+        fontWeight: '400' as const,
+        lineHeight: 24,
+    },
+    bodyL: {
+        fontSize: 16,
+        fontWeight: '400' as const,
+        lineHeight: 22,
+    },
+    bodyM: {
+        fontSize: 14,
+        fontWeight: '400' as const,
+        lineHeight: 18,
+    },
+    bodyS: {
+        fontSize: 12,
+        fontWeight: '400' as const,
+        lineHeight: 16,
+    },
+    bodyXS: {
+        fontSize: 10,
+        fontWeight: '500' as const,
+        lineHeight: 12,
+    },
+
+    // Action text (buttons, links)
+    actionL: {
+        fontSize: 14,
+        fontWeight: '600' as const,
+        lineHeight: 16,
+        textTransform: 'uppercase' as const,
+    },
+    actionM: {
+        fontSize: 12,
+        fontWeight: '600' as const,
+        lineHeight: 14,
+        textTransform: 'uppercase' as const,
+    },
+    actionS: {
+        fontSize: 10,
+        fontWeight: '600' as const,
+        lineHeight: 12,
+        textTransform: 'uppercase' as const,
+    },
+
+    // Caption text
+    captionM: {
+        fontSize: 10,
+        fontWeight: '600' as const,
+        lineHeight: 12,
+    },
+};
+
+// Helper function to easily apply typography styles
+export const getTextStyle = (variant: keyof typeof typography, additionalStyles?: any) => ({
+    ...typography[variant],
+    ...additionalStyles,
+});
 
 export const theme = {
     colors: {
@@ -34,92 +123,7 @@ export const theme = {
             error: '#BC2B18',
         },
     },
-    typography: {
-        heading: {
-            h1: {
-                fontSize: 24,
-                fontWeight: '800' as const, // "Extra bold"
-                lineHeight: 28,
-            },
-            h2: {
-                fontSize: 18,
-                fontWeight: '800' as const,
-                lineHeight: 22,
-            },
-            h3: {
-                fontSize: 16,
-                fontWeight: '800' as const,
-                lineHeight: 20,
-            },
-            h4: {
-                fontSize: 14,
-                fontWeight: '700' as const, // "Bold"
-                lineHeight: 18,
-            },
-            h5: {
-                fontSize: 12,
-                fontWeight: '700' as const,
-                lineHeight: 16,
-            },
-        },
-
-        body: {
-            xl: {
-                fontSize: 18,
-                fontWeight: '400' as const, // "Regular"
-                lineHeight: 24,
-            },
-            l: {
-                fontSize: 16,
-                fontWeight: '400' as const,
-                lineHeight: 22,
-            },
-            m: {
-                fontSize: 14,
-                fontWeight: '400' as const,
-                lineHeight: 18,
-            },
-            s: {
-                fontSize: 12,
-                fontWeight: '400' as const,
-                lineHeight: 16,
-            },
-            xs: {
-                fontSize: 10,
-                fontWeight: '500' as const, // "Medium"
-                lineHeight: 12,
-            },
-        },
-
-        action: {
-            l: {
-                fontSize: 14,
-                fontWeight: '600' as const, // "Semi Bold"
-                lineHeight: 16,
-                textTransform: 'uppercase',
-            },
-            m: {
-                fontSize: 12,
-                fontWeight: '600' as const,
-                lineHeight: 14,
-                textTransform: 'uppercase',
-            },
-            s: {
-                fontSize: 10,
-                fontWeight: '600' as const,
-                lineHeight: 12,
-                textTransform: 'uppercase',
-            },
-        },
-
-        caption: {
-            m: {
-                fontSize: 10,
-                fontWeight: '600' as const, // Semi Bold
-                lineHeight: 12,
-            },
-        },
-    },
+    // Typography is now defined in the StyleSheet below for better performance
     container: {
         flex: 1,
         padding: 24,
@@ -242,7 +246,6 @@ export const theme = {
 
 // Create StyleSheet for better performance
 export const styles = StyleSheet.create({
-    
     // Landing page styles
     landingContainer: {
         flex: 1,
@@ -250,7 +253,6 @@ export const styles = StyleSheet.create({
         paddingTop: 60,
         paddingBottom: 40,
         flexDirection: 'column',
-        justifyContent: 'space-between',
     },
     landingTopSection: {
         alignItems: 'center',
@@ -268,68 +270,85 @@ export const styles = StyleSheet.create({
     },
     landingButtonSection: {
         alignItems: 'center',
+        marginTop: 'auto',
     },
     landingButtonContainer: {
         width: '100%',
         maxWidth: 400,
         alignSelf: 'center',
-        gap: 16,
+        gap: 12,
     },
     landingButton: {
         width: '100%',
     },
-    
+
     // Auth pages styles (sign-up, sign-in)
     authContainer: {
         flex: 1,
-        padding: 24,
-        backgroundColor: '#f5f5f5',
+        paddingHorizontal: 20,
+        paddingTop: 32,
+        paddingBottom: 32,
+        flexDirection: 'column',
     },
     authHeader: {
-        alignItems: 'center',
-        marginTop: 60,
-        marginBottom: 24,
+        alignItems: 'flex-start',
+        marginTop: 20,
+        marginBottom: 16,
     },
     authTitle: {
-        fontSize: theme.typography.heading.h1.fontSize,
-        fontWeight: theme.typography.heading.h1.fontWeight,
+        ...typography.headingH1,
         color: theme.colors.secondary.light,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     authSubtitle: {
-        fontSize: 16,
-        color: '#7f8c8d',
-        textAlign: 'center',
+        ...typography.bodyS,
+        color: theme.colors.secondary.light,
+        textAlign: 'left',
     },
     authFormLabel: {
+        ...typography.headingH5,
         color: theme.colors.secondary.light,
-        fontSize: theme.typography.heading.h5.fontSize,
-        fontWeight: theme.typography.heading.h5.fontWeight,
-        lineHeight: theme.typography.heading.h5.lineHeight,
-        marginBottom: 8
+        marginBottom: 4
     },
     authForm: {
+        width: '100%',
         flex: 1,
-        /*justifyContent: 'flex-end',*/
+    },
+
+    // Keyboard handling styles
+    keyboardContainer: {
+        flex: 1,
+    },
+    scrollContainer: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'space-between',
+        paddingBottom: 20,
     },
     authInput: {
         borderWidth: 1,
-        borderRadius: 10,
-        padding: 15,
+        borderRadius: 8,
+        padding: 12,
+        height: 48,
         color: theme.colors.secondary.light,
         marginBottom: 8,
         borderColor: theme.colors.secondary.light,
-        fontSize: 16,
+        textAlignVertical: 'center',
+        ...typography.bodyL,
     },
     authButtonContainer: {
+        marginTop: 28,
+        alignItems: 'center',
     },
     authFooterText: {
+        ...typography.bodyS,
         color: '#7f8c8d',
         textAlign: 'center',
-        fontSize: 12,
-        marginBottom: 20,
+        // marginTop: 16,
     },
-    
+
     // Main app home page styles
     homeContainer: {
         flex: 1,
@@ -342,13 +361,13 @@ export const styles = StyleSheet.create({
         marginTop: 60,
     },
     homeTitle: {
+        ...typography.headingH2,
         fontSize: 28,
-        fontWeight: '700',
         color: '#2c3e50',
         marginBottom: 8,
     },
     homeSubtitle: {
-        fontSize: 16,
+        ...typography.bodyL,
         color: '#7f8c8d',
     },
     homeUserInfo: {
@@ -366,24 +385,24 @@ export const styles = StyleSheet.create({
         elevation: 5,
     },
     homeStatusText: {
-        fontSize: 18,
+        ...typography.bodyXL,
         fontWeight: '600',
         color: '#27ae60',
         marginBottom: 8,
     },
     homeEmailText: {
-        fontSize: 16,
+        ...typography.bodyL,
         color: '#2c3e50',
         marginBottom: 4,
     },
     homeUserIdText: {
-        fontSize: 14,
+        ...typography.bodyM,
         color: '#7f8c8d',
     },
     homeActions: {
         marginTop: 'auto',
     },
-    
+
     // Modal styles
     modalContainer: {
         flex: 1,
@@ -395,7 +414,7 @@ export const styles = StyleSheet.create({
         marginTop: 15,
         paddingVertical: 15,
     },
-    
+
     // Explore page styles
     exploreHeaderImage: {
         color: '#808080',
@@ -407,7 +426,7 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 8,
     },
-    
+
     // Index page styles
     indexTitleContainer: {
         flexDirection: 'row',
@@ -425,11 +444,11 @@ export const styles = StyleSheet.create({
         left: 0,
         position: 'absolute',
     },
-    
+
     // Button styles
     baseButton: {
         borderRadius: 40,
-        paddingVertical: 18,
+        paddingVertical: 16,
         paddingHorizontal: 24,
         alignItems: 'center',
         justifyContent: 'center',
@@ -443,22 +462,22 @@ export const styles = StyleSheet.create({
         borderColor: '#FCFAE1',
     },
     primaryButtonText: {
+        ...typography.bodyL,
         color: '#29361B',
-        fontSize: 16,
         fontWeight: '600',
     },
     secondaryButtonText: {
+        ...typography.bodyL,
         color: '#FCFAE1',
-        fontSize: 16,
         fontWeight: '600',
     },
-    
+
     // Common styles
     errorText: {
+        ...typography.bodyM,
         color: '#e74c3c',
         textAlign: 'center',
         marginBottom: 10,
-        fontSize: 14,
     },
     loader: {
         marginTop: 20,

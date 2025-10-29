@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, Button, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, Text, TextInput, Button, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
@@ -18,7 +18,23 @@ export default function SignUp() {
   const [username, setUsername] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
+  const [scrollEnabled, setScrollEnabled] = React.useState(false);
   const router = useRouter();
+
+  // Enable scrolling when keyboard appears, disable when it hides
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setScrollEnabled(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setScrollEnabled(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const signup = async () => {
     if (!email.trim() || !pw || !confirmPw || !name.trim() || !username.trim()) {
@@ -93,81 +109,100 @@ export default function SignUp() {
 
   return (
     <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.authContainer}>
-      <View style={styles.authHeader}>
-        <Text style={styles.authTitle}>Trail Mix</Text>
-        <Text style={styles.authSubtitle}>Create an account to get started.</Text>
-      </View>
-
-      <View style={styles.authForm}>
-        <Text style={styles.authFormLabel}>Name</Text>
-        <TextInput
-          placeholder="Name"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          value={name}
-          onChangeText={setName}
-          style={styles.authInput}
-          editable={!loading}
-        />
-
-        <Text style={styles.authFormLabel}>Username</Text>
-        <TextInput
-          placeholder="Username"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          autoCapitalize="none"
-          value={username}
-          onChangeText={setUsername}
-          style={styles.authInput}
-          editable={!loading}
-        />
-
-        <Text style={styles.authFormLabel}>Email</Text>
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.authInput}
-          editable={!loading}
-        />
-
-        <Text style={styles.authFormLabel}>Password</Text>
-        <TextInput
-          placeholder="Password (≥ 6 chars)"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          secureTextEntry
-          value={pw}
-          onChangeText={setPw}
-          style={styles.authInput}
-          editable={!loading}
-        />
-        <TextInput
-          placeholder="Confirm Password"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          secureTextEntry
-          value={confirmPw}
-          onChangeText={setConfirmPw}
-          style={styles.authInput}
-          editable={!loading}
-        />
-        {err ? <Text style={styles.errorText}>{err}</Text> : null}   
-      </View>
-      <View style={styles.authButtonContainer}>
-        {/* SIGN IN (primary button) */}
-        <TouchableOpacity
-          style={[styles.baseButton, styles.primaryButton, styles.landingButton]}
-          onPress={signup}
-          disabled={loading}
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
         >
-          <Text style={styles.primaryButtonText}>
-            {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
-          </Text>
-        </TouchableOpacity>
-        <Text style={styles.authFooterText}>
-          Already have an account? <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/sign-in">Sign in</Link>
-        </Text>
-      </View>
+          <View style={styles.authHeader}>
+            <Text style={styles.authTitle}>Trail Mix</Text>
+            <Text style={styles.authSubtitle}>Create an account to get started.</Text>
+          </View>
+
+          <View style={styles.authForm}>
+            <Text style={styles.authFormLabel}>Name</Text>
+            <TextInput
+              placeholder="Name"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              value={name}
+              onChangeText={setName}
+              style={styles.authInput}
+              editable={!loading}
+            />
+
+            <Text style={styles.authFormLabel}>Username</Text>
+            <TextInput
+              placeholder="Username"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              autoCapitalize="none"
+              value={username}
+              onChangeText={setUsername}
+              style={styles.authInput}
+              editable={!loading}
+            />
+
+            <Text style={styles.authFormLabel}>Email</Text>
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              style={styles.authInput}
+              editable={!loading}
+            />
+
+            <Text style={styles.authFormLabel}>Password</Text>
+            <TextInput
+              placeholder="Password (≥ 6 chars)"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              secureTextEntry
+              value={pw}
+              onChangeText={setPw}
+              style={styles.authInput}
+              editable={!loading}
+            />
+            <TextInput
+              placeholder="Confirm Password"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              secureTextEntry
+              value={confirmPw}
+              onChangeText={setConfirmPw}
+              style={styles.authInput}
+              editable={!loading}
+            />
+          </View>
+          <View style={styles.landingButtonSection}>
+            {err ? <Text style={styles.errorText}>{err}</Text> : null}
+
+            <View style={styles.landingButtonContainer}>
+              {/* CREATE ACCOUNT (primary button) */}
+              <TouchableOpacity
+                style={[styles.baseButton, styles.primaryButton, styles.landingButton]}
+                onPress={signup}
+                disabled={loading}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.authFooterText}>
+                Already have an account? <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/sign-in">Sign in</Link>
+              </Text>
+            </View>
+
+            {loading && <ActivityIndicator style={styles.loader} />}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }

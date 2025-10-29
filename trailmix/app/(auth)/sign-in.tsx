@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TextInput, Button, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Button, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from "react-native";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
@@ -15,7 +15,23 @@ export default function SignIn() {
   const [pw, setPw] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
+  const [scrollEnabled, setScrollEnabled] = React.useState(false);
   const router = useRouter();
+
+  // Enable scrolling when keyboard appears, disable when it hides
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setScrollEnabled(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setScrollEnabled(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const signup = async () => {
     if (!email.trim() || !pw) {
@@ -77,58 +93,72 @@ export default function SignIn() {
 
   return (
     <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.authContainer}>
-      <View style={styles.authHeader}>
-        <Text style={styles.authTitle}>Trail Mix</Text>
-      </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
+        >
+          <View style={styles.authHeader}>
+            <Text style={styles.authTitle}>Trail Mix</Text>
+          </View>
 
-      <View style={styles.authForm}>
-        <Text style={styles.authFormLabel}>Username</Text>
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.authInput}
-          editable={!loading}
-        />
+          <View style={styles.authForm}>
+            <Text style={styles.authFormLabel}>Username</Text>
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              style={styles.authInput}
+              editable={!loading}
+            />
 
-        <Text style={styles.authFormLabel}>Password</Text>
-        <TextInput
-          placeholder="Password (≥ 6 chars)"
-          placeholderTextColor={theme.colors.neutraldark.light}
-          secureTextEntry
-          value={pw}
-          onChangeText={setPw}
-          style={styles.authInput}
-          editable={!loading}
-        />
-        <Text style={{...styles.authFooterText, textAlign: 'left'}}>
-          <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/resend-password">Forgot Password?</Link>
-        </Text>
-      </View>
-      <View style={styles.landingButtonSection}>
-        {err ? <Text style={styles.errorText}>{err}</Text> : null}
-
-        <View style={styles.landingButtonContainer}>
-          {/* SIGN IN (primary button) */}
-          <TouchableOpacity
-            style={[styles.baseButton, styles.primaryButton, styles.landingButton]}
-            onPress={login}
-            disabled={loading}
-          >
-            <Text style={styles.primaryButtonText}>
-              {loading ? "SIGNING IN..." : "SIGN IN"}
+            <Text style={styles.authFormLabel}>Password</Text>
+            <TextInput
+              placeholder="Password (≥ 6 chars)"
+              placeholderTextColor={theme.colors.neutraldark.light}
+              secureTextEntry
+              value={pw}
+              onChangeText={setPw}
+              style={styles.authInput}
+              editable={!loading}
+            />
+            <Text style={{ ...styles.authFooterText, textAlign: 'left' }}>
+              <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/resend-password">Forgot Password?</Link>
             </Text>
-          </TouchableOpacity>
-          <Text style={styles.authFooterText}>
-            Not a member? <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/sign-up">Register now</Link>
-          </Text>
-        </View>
+          </View>
+          <View style={styles.landingButtonSection}>
+            {err ? <Text style={styles.errorText}>{err}</Text> : null}
 
-        {loading && <ActivityIndicator style={styles.loader} />}
-      </View>
+            <View style={styles.landingButtonContainer}>
+              {/* SIGN IN (primary button) */}
+              <TouchableOpacity
+                style={[styles.baseButton, styles.primaryButton, styles.landingButton]}
+                onPress={login}
+                disabled={loading}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {loading ? "SIGNING IN..." : "SIGN IN"}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.authFooterText}>
+                Not a member? <Link style={{ color: theme.colors.secondary.medium }} href="/(auth)/sign-up">Register now</Link>
+              </Text>
+            </View>
+
+            {loading && <ActivityIndicator style={styles.loader} />}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
