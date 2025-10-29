@@ -16,7 +16,7 @@ def test_environment_variables():
     print("=" * 40)
     
     # Load environment variables
-    env_path = os.path.join(os.path.dirname(__file__), '.env')
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'secrets', '.env')
     print(f"Loading .env from: {env_path}")
     
     if not os.path.exists(env_path):
@@ -76,7 +76,7 @@ def main():
         print("Environment setup is working correctly!")
         print("\nNext steps:")
         print("1. Download serviceAccountKey.json from Firebase Console")
-        print("2. Place it in backend/accounts/serviceAccountKey.json")
+        print("2. Place it in secrets/serviceAccountKey.json")
         print("3. Run: python accounts/signups.py")
         return True
     else:

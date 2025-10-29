@@ -1,6 +1,9 @@
 // Load environment variables for Expo
 import { config } from 'dotenv';
-config();
+import path from 'path';
+
+// Load environment variables from the secrets folder
+config({ path: path.join(__dirname, '../secrets/.env') });
 
 export default {
   expo: {

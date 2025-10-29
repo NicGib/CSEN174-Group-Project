@@ -30,8 +30,8 @@ pip install firebase-admin requests
 
 ### Configuration
 
-1. Place your `serviceAccountKey.json` in the `backend/accounts/` directory
-2. Update the `FIREBASE_WEB_API_KEY` in `singups.py` with your Firebase Web API key
+1. Place your `serviceAccountKey.json` in the `secrets/` directory
+2. Create a `.env` file in the `secrets/` directory with your Firebase configuration
 3. Ensure your Firebase project has Authentication and Firestore enabled
 
 ## 🎯 Usage

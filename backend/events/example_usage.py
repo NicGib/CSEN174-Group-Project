@@ -186,8 +186,8 @@ def main():
     except Exception as e:
         print(f"Example failed: {e}")
         print("Make sure you have:")
-        print("1. Firebase service account key in backend/accounts/serviceAccountKey.json")
-        print("2. FIREBASE_API_KEY in your .env file")
+        print("1. Firebase service account key in secrets/serviceAccountKey.json")
+        print("2. Firebase configuration in secrets/.env file")
         print("3. All required dependencies installed")
 
 if __name__ == "__main__":

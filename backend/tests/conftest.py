@@ -172,8 +172,8 @@ def setup_test_environment():
 def mock_service_account():
     """Mock service account file"""
     service_account_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), 
-        'accounts', 
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+        'secrets', 
         'serviceAccountKey.json'
     )
     

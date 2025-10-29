@@ -17,8 +17,8 @@ This module provides a complete system for managing hiking events with location,
 ### 1. Prerequisites
 
 Make sure you have:
-- Firebase service account key at `backend/accounts/serviceAccountKey.json`
-- `FIREBASE_API_KEY` in your `.env` file
+- Firebase service account key at `secrets/serviceAccountKey.json`
+- Firebase configuration in `secrets/.env` file
 - Required Python dependencies installed
 
 ### 2. Basic Usage
@@ -204,7 +204,7 @@ def get_events():
 **Common Issues:**
 
 1. **Firebase Connection Error**: Check that your service account key is in the correct location
-2. **Environment Variable Missing**: Ensure `FIREBASE_API_KEY` is set in your `.env` file
+2. **Environment Variable Missing**: Ensure `FIREBASE_API_KEY` is set in your `secrets/.env` file
 3. **Date Format Error**: Use YYYY-MM-DD format for event dates
 4. **Event Not Found**: Verify the event ID is correct and the event exists
 

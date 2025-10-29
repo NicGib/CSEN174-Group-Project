@@ -9,14 +9,14 @@ import unicodedata
 from dotenv import load_dotenv
 
 # Load environment variables
-# Look for .env file in the parent directory (backend/)
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+# Look for .env file in the secrets directory
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'secrets', '.env')
 load_dotenv(env_path)
 
 # ─────────────────────────
 # 1. Firebase initialization
 # ─────────────────────────
-SERVICE_ACCOUNT_PATH = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
+SERVICE_ACCOUNT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'secrets', "serviceAccountKey.json")
 FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_API_KEY")
 
 # Validate environment variables

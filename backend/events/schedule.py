@@ -8,13 +8,13 @@ from dotenv import load_dotenv
 from typing import List, Dict, Optional
 
 # Load environment variables
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "secrets", ".env")
 load_dotenv(env_path)
 
 # ─────────────────────────
 # 1. Firebase initialization
 # ─────────────────────────
-SERVICE_ACCOUNT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "accounts", "serviceAccountKey.json")
+SERVICE_ACCOUNT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "secrets", "serviceAccountKey.json")
 
 if not os.path.exists(SERVICE_ACCOUNT_PATH):
     raise FileNotFoundError(f"Service account key file not found: {SERVICE_ACCOUNT_PATH}")
