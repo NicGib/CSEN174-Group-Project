@@ -51,3 +51,4 @@ app-example
 backend/accounts/serviceAccountKey.json
 backend/setup_env.py
 backend/SETUP_GUIDE.md
+secrets/serviceAccountKey.json
