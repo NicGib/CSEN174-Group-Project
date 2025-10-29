@@ -2,6 +2,8 @@
 .venv/
 *__pycache__/
 *.pyc
+.pytest_cache/
+.coverage
 
 # Backend specific
 /maps/cache
@@ -9,6 +11,7 @@
 # Environment variables
 .env
 .env*.local
+
 
 # Dependencies
 node_modules/
