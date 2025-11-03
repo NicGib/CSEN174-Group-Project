@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Button, Alert } from "react-native";
+import { View, Text, Button, Alert, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { auth } from "../src/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -7,6 +8,7 @@ import { theme, styles } from "./theme";
 
 export default function Home() {
   const user = auth.currentUser;
+  const router = useRouter();
 
   const handleSignOut = () => {
     Alert.alert(
@@ -49,6 +51,20 @@ export default function Home() {
       </View>
 
       <View style={styles.homeActions}>
+        <TouchableOpacity
+          style={[styles.baseButton, styles.primaryButton, { marginBottom: 12 }]}
+          onPress={() => router.push("/(tabs)/events")}
+        >
+          <Text style={styles.primaryButtonText}>Go to Events</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.baseButton, styles.primaryButton, { marginBottom: 12 }]}
+          onPress={() => router.push("/(tabs)/maps")}
+        >
+          <Text style={styles.primaryButtonText}>Go to Maps</Text>
+        </TouchableOpacity>
+
         <Button 
           title="Sign Out" 
           onPress={handleSignOut}

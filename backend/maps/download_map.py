@@ -151,14 +151,38 @@ def build_map(lat, lng, zoom, style, sanitized_title, osm_geojson, trailheads_ge
                 "fillOpacity": 0.2
             }
         
+        # Build a safe tooltip based on the first feature that actually has properties.
+        # Folium validates tooltip fields against the FIRST feature only.
+        features_list = osm_geojson.get("features", [])
+        first_with_props_idx = next((i for i, f in enumerate(features_list) if f.get("properties")), None)
+
+        tooltip = None
+        if first_with_props_idx is not None:
+            first_props_keys = set(features_list[first_with_props_idx]["properties"].keys())
+            preferred_order = ["name", "highway", "surface", "sac_scale", "tracktype"]
+            fields_for_tooltip = [k for k in preferred_order if k in first_props_keys]
+
+            if fields_for_tooltip:
+                # Ensure the feature used for validation is first in the collection
+                if first_with_props_idx != 0:
+                    features_list = [features_list[first_with_props_idx]] + features_list[:first_with_props_idx] + features_list[first_with_props_idx+1:]
+                    osm_geojson = {**osm_geojson, "features": features_list}
+
+                aliases_map = {
+                    "name": "Trail Name:",
+                    "highway": "Type:",
+                    "surface": "Surface:",
+                    "sac_scale": "SAC:",
+                    "tracktype": "Track type:",
+                }
+                aliases = [aliases_map[k] for k in fields_for_tooltip]
+                tooltip = folium.features.GeoJsonTooltip(fields=fields_for_tooltip, aliases=aliases)
+
         folium.GeoJson(
             osm_geojson,
             name="OSM Hiking Trails",
             style_function=trail_style,
-            tooltip=folium.features.GeoJsonTooltip(
-                fields=["name", "highway"], 
-                aliases=["Trail Name:", "Type:"]
-            )
+            tooltip=tooltip
         ).add_to(hiking_fg)
 
         for f in osm_geojson["features"]:
