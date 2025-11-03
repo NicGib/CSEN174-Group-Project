@@ -141,11 +141,48 @@ def build_map(lat, lng, zoom, style, sanitized_title, osm_geojson, trailheads_ge
     
     # Only add GeoJSON if we have valid data
     if osm_geojson and osm_geojson.get("type") == "FeatureCollection" and osm_geojson.get("features"):
+        # Style trails with more visible colors
+        def trail_style(feature):
+            return {
+                "weight": 4,
+                "opacity": 0.9,
+                "color": "#FF6B35",  # Orange color for trails
+                "fillColor": "#FF6B35",
+                "fillOpacity": 0.2
+            }
+        
+        # Build a safe tooltip based on the first feature that actually has properties.
+        # Folium validates tooltip fields against the FIRST feature only.
+        features_list = osm_geojson.get("features", [])
+        first_with_props_idx = next((i for i, f in enumerate(features_list) if f.get("properties")), None)
+
+        tooltip = None
+        if first_with_props_idx is not None:
+            first_props_keys = set(features_list[first_with_props_idx]["properties"].keys())
+            preferred_order = ["name", "highway", "surface", "sac_scale", "tracktype"]
+            fields_for_tooltip = [k for k in preferred_order if k in first_props_keys]
+
+            if fields_for_tooltip:
+                # Ensure the feature used for validation is first in the collection
+                if first_with_props_idx != 0:
+                    features_list = [features_list[first_with_props_idx]] + features_list[:first_with_props_idx] + features_list[first_with_props_idx+1:]
+                    osm_geojson = {**osm_geojson, "features": features_list}
+
+                aliases_map = {
+                    "name": "Trail Name:",
+                    "highway": "Type:",
+                    "surface": "Surface:",
+                    "sac_scale": "SAC:",
+                    "tracktype": "Track type:",
+                }
+                aliases = [aliases_map[k] for k in fields_for_tooltip]
+                tooltip = folium.features.GeoJsonTooltip(fields=fields_for_tooltip, aliases=aliases)
+
         folium.GeoJson(
             osm_geojson,
-            name="hiking",
-            style_function=lambda f: {"weight": 3, "opacity": 0.95},
-            tooltip=folium.features.GeoJsonTooltip(fields=["name"], aliases=["Name"])
+            name="OSM Hiking Trails",
+            style_function=trail_style,
+            tooltip=tooltip
         ).add_to(hiking_fg)
 
         for f in osm_geojson["features"]:
@@ -181,27 +218,141 @@ def build_map(lat, lng, zoom, style, sanitized_title, osm_geojson, trailheads_ge
     return m
 
 
+def convert_osm_to_geojson(osm_data):
+    """Convert OSM format to GeoJSON format"""
+    if not osm_data or "elements" not in osm_data:
+        return {"type": "FeatureCollection", "features": []}
+    
+    features = []
+    nodes = {}
+    
+    # First pass: collect all nodes
+    for element in osm_data["elements"]:
+        if element.get("type") == "node":
+            node_id = element.get("id")
+            lat = element.get("lat")
+            lon = element.get("lon")
+            if lat is not None and lon is not None:
+                nodes[node_id] = {"lat": lat, "lon": lon}
+    
+    print(f"[Convert] Collected {len(nodes)} nodes")
+    
+    # Second pass: convert ways to LineString features
+    way_count = 0
+    for element in osm_data["elements"]:
+        if element.get("type") == "way":
+            way_count += 1
+            geometry = element.get("geometry")
+            nodes_list = element.get("nodes", [])
+            tags = element.get("tags", {})
+            
+            coordinates = []
+            
+            # Prefer geometry if available (includes coordinates directly)
+            if geometry and isinstance(geometry, list):
+                coordinates = [[coord.get("lon"), coord.get("lat")] 
+                             for coord in geometry 
+                             if coord.get("lat") is not None and coord.get("lon") is not None]
+            elif nodes_list:
+                # Build coordinates from node references
+                coordinates = []
+                for node_id in nodes_list:
+                    if node_id in nodes:
+                        node = nodes[node_id]
+                        # GeoJSON format: [longitude, latitude]
+                        coordinates.append([node["lon"], node["lat"]])
+            
+            # Skip if we don't have enough coordinates
+            if len(coordinates) < 2:
+                continue
+            
+            # Only include ways that are likely trails/paths
+            highway_type = tags.get("highway", "")
+            route_type = tags.get("route", "")
+            
+            # Include if it's a pedestrian path type or explicitly marked as hiking
+            if (highway_type in ["footway", "path", "track", "steps", "bridleway"] or
+                route_type == "hiking" or
+                "sac_scale" in tags or
+                "trail_visibility" in tags or
+                tags.get("mountain_pass") == "yes"):
+                
+                feature = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": coordinates
+                    },
+                    "properties": tags
+                }
+                features.append(feature)
+    
+    print(f"[Convert] Processed {way_count} ways, created {len(features)} trail features")
+    return {"type": "FeatureCollection", "features": features}
+
 def fetch_osm_data(lat, lng, radius_km):
     """Fetch OSM hiking trail data"""
     bbox = bbox_from_point(lat, lng, radius_km)
     south, west, north, east = bbox
     
+    print(f"[OSM] Querying bbox: south={south:.4f}, west={west:.4f}, north={north:.4f}, east={east:.4f}")
+    
+    # More inclusive query - get all walking/hiking related ways
+    # Query multiple trail types and ensure we get geometry
     overpass_query = f"""
-    [out:json][timeout:25];
+    [out:json][timeout:60];
     (
-      way["highway"="footway"]["sac_scale"]({south},{west},{north},{east});
-      way["highway"="path"]["sac_scale"]({south},{west},{north},{east});
-      way["highway"="track"]["sac_scale"]({south},{west},{north},{east});
+      // All pedestrian/hiking paths (most common)
+      way["highway"="footway"]({south},{west},{north},{east});
+      way["highway"="path"]({south},{west},{north},{east});
+      way["highway"="track"]({south},{west},{north},{east});
+      way["highway"="steps"]({south},{west},{north},{east});
+      way["highway"="bridleway"]({south},{west},{north},{east});
+      
+      // Ways with hiking-specific tags
+      way["route"="hiking"]({south},{west},{north},{east});
+      way["trail_visibility"]({south},{west},{north},{east});
+      way["sac_scale"]({south},{west},{north},{east});
+      way["mountain_pass"="yes"]({south},{west},{north},{east});
     );
     out geom;
     """
     
     try:
-        response = requests.post(OVERPASS_URL, data=overpass_query, timeout=30)
+        print(f"[OSM] Sending query to Overpass API...")
+        response = requests.post(OVERPASS_URL, data=overpass_query, timeout=60)
         response.raise_for_status()
-        return response.json()
+        osm_data = response.json()
+        
+        # Debug: check what we got
+        elements_count = len(osm_data.get("elements", []))
+        ways_count = len([e for e in osm_data.get("elements", []) if e.get("type") == "way"])
+        nodes_count = len([e for e in osm_data.get("elements", []) if e.get("type") == "node"])
+        print(f"[OSM] Received {elements_count} elements ({ways_count} ways, {nodes_count} nodes)")
+        
+        # Convert OSM format to GeoJSON
+        geojson = convert_osm_to_geojson(osm_data)
+        feature_count = len(geojson.get("features", []))
+        
+        print(f"[OSM] Converted to {feature_count} GeoJSON features")
+        
+        if feature_count > 0:
+            # Show sample of trail names if available
+            sample_names = [f.get("properties", {}).get("name", "Unnamed") 
+                          for f in geojson.get("features", [])[:3] 
+                          if f.get("properties", {}).get("name")]
+            if sample_names:
+                print(f"[OSM] Sample trail names: {', '.join(sample_names)}")
+        
+        return geojson
     except requests.RequestException as e:
-        print(f"Error fetching OSM data: {e}")
+        print(f"[OSM] Error fetching OSM data: {e}")
+        print(f"[OSM] Response status: {response.status_code if 'response' in locals() else 'N/A'}")
+        return {"type": "FeatureCollection", "features": []}
+    except Exception as e:
+        print(f"[OSM] Error converting OSM data to GeoJSON: {e}")
+        import traceback
+        traceback.print_exc()
         return {"type": "FeatureCollection", "features": []}
 
 def fetch_trailheads_data(lat, lng, radius_km):
