@@ -19,26 +19,23 @@ REM ---- Check npm ----
 where npm >nul 2>&1
 if errorlevel 1 goto no_npm
 
-REM ---- Backend: go to folder ----
-pushd "%~dp0backend" >nul 2>&1
-if errorlevel 1 goto no_backend
+REM ---- Backend: verify folder exists ----
+if not exist "%~dp0backend" goto no_backend
 
-REM ---- Ensure/activate .venv without parentheses blocks ----
-if exist ".venv\Scripts\activate.bat" goto have_venv
+REM ---- Ensure/activate root .venv ----
+if exist "%~dp0.venv\Scripts\activate.bat" goto have_root_venv
 
-echo Creating virtual environment...
-python -m venv .venv
+echo Creating virtual environment at repo root...
+python -m venv "%~dp0.venv"
 if errorlevel 1 goto venv_fail
 
-:have_venv
-call ".venv\Scripts\activate.bat"
+:have_root_venv
+call "%~dp0.venv\Scripts\activate.bat"
 if errorlevel 1 goto venv_act_fail
 
 echo Installing backend dependencies (no pip self-upgrade)...
-pip install -r requirements.txt
+pip install -r "%~dp0backend\requirements.txt"
 if errorlevel 1 goto pip_install_fail
-
-popd >nul 2>&1
 
 echo Checking trailmix directory...
 if not exist "%~dp0trailmix\package.json" goto no_trailmix

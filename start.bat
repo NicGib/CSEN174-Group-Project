@@ -6,7 +6,8 @@ REM ================================
 REM Navigate to backend directory and start FastAPI
 echo Starting FastAPI backend...
 cd /d "%~dp0backend"
-start cmd /k "uvicorn main:app --reload"
+start cmd /k "call \"%~dp0.venv\Scripts\activate.bat\" 
+start cmd /k "uvicorn main:app --reload""
 
 REM Give backend a few seconds to start up
 timeout /t 5 /nobreak >nul
