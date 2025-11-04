@@ -25,47 +25,79 @@ export type EventCreate = {
 };
 
 export async function listEvents(limit = 50): Promise<EventDetails[]> {
-  const res = await fetch(`${endpoints.events}?limit=${encodeURIComponent(String(limit))}`);
-  if (!res.ok) throw new Error(`Failed to load events (${res.status})`);
-  return res.json();
+  try {
+    const res = await fetch(`${endpoints.events}?limit=${encodeURIComponent(String(limit))}`);
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to load events (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json();
+  } catch (error: any) {
+    if (error.message?.includes("Failed to load")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
 }
 
 export async function createEvent(payload: EventCreate) {
-  const res = await fetch(`${endpoints.events}/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`Failed to create event (${res.status})`);
-  return res.json();
+  try {
+    const res = await fetch(`${endpoints.events}/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to create event (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json();
+  } catch (error: any) {
+    if (error.message?.includes("Failed to create")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
 }
 
 export async function joinEvent(eventId: string, user_uid: string, user_name?: string) {
-  const res = await fetch(`${endpoints.events}/${encodeURIComponent(eventId)}/attendees`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_uid, user_name: user_name || "" }),
-  });
-  if (!res.ok) throw new Error(`Failed to join event (${res.status})`);
-  return res.json();
+  try {
+    const res = await fetch(`${endpoints.events}/${encodeURIComponent(eventId)}/attendees`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_uid, user_name: user_name || "" }),
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to join event (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json();
+  } catch (error: any) {
+    if (error.message?.includes("Failed to join")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
 }
 
 export async function leaveEvent(eventId: string, user_uid: string) {
-  // Try DELETE with user id in path first: /events/{id}/attendees/{user_uid}
-  let res = await fetch(
-    `${endpoints.events}/${encodeURIComponent(eventId)}/attendees/${encodeURIComponent(user_uid)}`,
-    { method: "DELETE" }
-  );
-  if (res.ok) return res.json?.() ?? {};
+  try {
+    // Try DELETE with user id in path first: /events/{id}/attendees/{user_uid}
+    let res = await fetch(
+      `${endpoints.events}/${encodeURIComponent(eventId)}/attendees/${encodeURIComponent(user_uid)}`,
+      { method: "DELETE" }
+    );
+    if (res.ok) return res.json?.() ?? {};
 
-  // Fallback: DELETE to /events/{id}/attendees with JSON body
-  res = await fetch(`${endpoints.events}/${encodeURIComponent(eventId)}/attendees`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_uid }),
-  });
-  if (!res.ok) throw new Error(`Failed to leave event (${res.status})`);
-  return res.json?.() ?? {};
+    // Fallback: DELETE to /events/{id}/attendees with JSON body
+    res = await fetch(`${endpoints.events}/${encodeURIComponent(eventId)}/attendees`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_uid }),
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to leave event (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json?.() ?? {};
+  } catch (error: any) {
+    if (error.message?.includes("Failed to leave")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
 }
 
 

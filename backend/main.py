@@ -5,7 +5,14 @@ from api.v1 import events as events_router
 from api.v1 import accounts as accounts_router
 from api.v1 import maps as maps_router
 
-app = FastAPI(title="TrailMix API", version="1.0.0")
+app = FastAPI(
+    title="TrailMix API",
+    version="1.0.0",
+    description="API documentation for TrailMix - a hiking event management system",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
 # CORS (tune for your frontend origin)
 app.add_middleware(
