@@ -1,35 +1,75 @@
 // Load environment variables for Expo
-const { config } = require('dotenv');
+const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 
 // Resolve the .env file path (cross-platform compatible)
-const envPath = path.resolve(__dirname, '../secrets/.env');
+// Try multiple possible paths to handle different execution contexts
+let envPath = path.resolve(__dirname, '../secrets/.env');
+
+// If not found, try from project root
+if (!fs.existsSync(envPath)) {
+  const altPath = path.resolve(process.cwd(), 'secrets/.env');
+  if (fs.existsSync(altPath)) {
+    envPath = altPath;
+    console.log(`📁 Using alternative path: ${envPath}`);
+  }
+}
 
 // Check if .env file exists and log the path for debugging
 if (!fs.existsSync(envPath)) {
   console.warn(`⚠️  WARNING: .env file not found at: ${envPath}`);
   console.warn(`   __dirname: ${__dirname}`);
   console.warn(`   Current working directory: ${process.cwd()}`);
+  console.warn(`   Trying alternative: ${path.resolve(process.cwd(), 'secrets/.env')}`);
 } else {
   console.log(`✅ Loading .env from: ${envPath}`);
+  
+  // Verify file is readable and has content
+  try {
+    const stats = fs.statSync(envPath);
+    const content = fs.readFileSync(envPath, 'utf8');
+    const lines = content.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
+    console.log(`   File size: ${stats.size} bytes, ${lines.length} non-empty lines`);
+  } catch (err) {
+    console.warn(`   ⚠️  Could not read file: ${err.message}`);
+  }
 }
 
 // Load environment variables from the secrets folder
-const result = config({ path: envPath });
+// Use dotenv.config() with override to ensure it loads properly
+const result = dotenv.config({ path: envPath, override: false });
 
 // Log if loading failed
 if (result.error) {
   console.error(`❌ Error loading .env file:`, result.error);
 } else {
-  // Verify Firebase config is loaded
-  const firebaseApiKey = process.env.FIREBASE_API_KEY;
-  if (!firebaseApiKey) {
-    console.warn(`⚠️  WARNING: FIREBASE_API_KEY not found in environment variables`);
-  } else {
-    console.log(`✅ Firebase API Key loaded: ${firebaseApiKey.substring(0, 10)}...`);
+  console.log(`✅ dotenv loaded successfully`);
+  if (result.parsed) {
+    console.log(`   Loaded ${Object.keys(result.parsed).length} variables`);
   }
 }
+
+// Debug: Log all Firebase-related env vars
+console.log('\n📋 Environment Variables Check:');
+const firebaseVars = [
+  'FIREBASE_API_KEY',
+  'FIREBASE_AUTH_DOMAIN',
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_STORAGE_BUCKET',
+  'FIREBASE_MESSAGING_SENDER_ID',
+  'FIREBASE_APP_ID'
+];
+
+firebaseVars.forEach(varName => {
+  const value = process.env[varName];
+  if (value) {
+    console.log(`   ✅ ${varName}: ${value.substring(0, 15)}...`);
+  } else {
+    console.log(`   ❌ ${varName}: NOT FOUND`);
+  }
+});
+console.log('');
 
 module.exports = {
   expo: {
