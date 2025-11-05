@@ -1,16 +1,12 @@
 // Load environment variables for Expo
-import { config } from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Get __dirname equivalent for ES modules (cross-platform compatible)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { config } = require('dotenv');
+const path = require('path');
 
 // Load environment variables from the secrets folder
+// __dirname is available in CommonJS and works cross-platform with path.join()
 config({ path: path.join(__dirname, '../secrets/.env') });
 
-export default {
+module.exports = {
   expo: {
     name: "trailmix",
     slug: "trailmix",
