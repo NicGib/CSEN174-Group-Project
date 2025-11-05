@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List
-from schemas.events import EventCreate, EventOut, EventDetails, AttendeeAdd
+from ...schemas.events import EventCreate, EventOut, EventDetails, AttendeeAdd
 # import your service functions
-from events.schedule import (
+from ...events.schedule import (
     create_hiking_event,
     add_attendee_to_event,
     remove_attendee_from_event,

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from schemas.accounts import SignupIn, SignupOut, LoginIn, LoginOut, UserProfile
-from accounts.signups import (
+from ...schemas.accounts import SignupIn, SignupOut, LoginIn, LoginOut, UserProfile
+from ...accounts.signups import (
     signup_with_email_password,
     login_with_email_password,
     get_user_profile,

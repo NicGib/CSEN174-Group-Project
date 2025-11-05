@@ -2,14 +2,10 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Optional
-from io import StringIO
-import sys
-import os
 import argparse
 
-# Add maps directory to path so we can import download_map functions
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
-from maps.download_map import (
+# Import map functions using relative import
+from ...maps.download_map import (
     fetch_osm_data,
     fetch_trailheads_data,
     build_map,

@@ -1,9 +1,9 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1 import events as events_router
-from api.v1 import accounts as accounts_router
-from api.v1 import maps as maps_router
+from .api.v1 import events as events_router
+from .api.v1 import accounts as accounts_router
+from .api.v1 import maps as maps_router
 
 app = FastAPI(
     title="TrailMix API",
