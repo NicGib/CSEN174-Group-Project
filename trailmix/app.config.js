@@ -1,10 +1,35 @@
 // Load environment variables for Expo
 const { config } = require('dotenv');
 const path = require('path');
+const fs = require('fs');
+
+// Resolve the .env file path (cross-platform compatible)
+const envPath = path.resolve(__dirname, '../secrets/.env');
+
+// Check if .env file exists and log the path for debugging
+if (!fs.existsSync(envPath)) {
+  console.warn(`⚠️  WARNING: .env file not found at: ${envPath}`);
+  console.warn(`   __dirname: ${__dirname}`);
+  console.warn(`   Current working directory: ${process.cwd()}`);
+} else {
+  console.log(`✅ Loading .env from: ${envPath}`);
+}
 
 // Load environment variables from the secrets folder
-// __dirname is available in CommonJS and works cross-platform with path.join()
-config({ path: path.join(__dirname, '../secrets/.env') });
+const result = config({ path: envPath });
+
+// Log if loading failed
+if (result.error) {
+  console.error(`❌ Error loading .env file:`, result.error);
+} else {
+  // Verify Firebase config is loaded
+  const firebaseApiKey = process.env.FIREBASE_API_KEY;
+  if (!firebaseApiKey) {
+    console.warn(`⚠️  WARNING: FIREBASE_API_KEY not found in environment variables`);
+  } else {
+    console.log(`✅ Firebase API Key loaded: ${firebaseApiKey.substring(0, 10)}...`);
+  }
+}
 
 module.exports = {
   expo: {
@@ -64,3 +89,15 @@ module.exports = {
     }
   }
 };
+
+// Validate Firebase config before exporting
+const firebaseConfig = module.exports.expo.extra.firebase;
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([key, value]) => !value)
+  .map(([key]) => key);
+
+if (missingKeys.length > 0) {
+  console.error(`❌ Missing Firebase environment variables: ${missingKeys.join(', ')}`);
+  console.error(`   Make sure the .env file exists at: ${envPath}`);
+  console.error(`   Required variables: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID`);
+}
