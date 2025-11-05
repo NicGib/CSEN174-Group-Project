@@ -1,6 +1,11 @@
 // Load environment variables for Expo
 import { config } from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules (cross-platform compatible)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from the secrets folder
 config({ path: path.join(__dirname, '../secrets/.env') });
