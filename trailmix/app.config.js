@@ -42,16 +42,16 @@ const result = dotenv.config({ path: envPath, override: false });
 
 // Log if loading failed
 if (result.error) {
-  console.error(`❌ Error loading .env file:`, result.error);
+  console.error(`Error loading .env file:`, result.error);
 } else {
-  console.log(`✅ dotenv loaded successfully`);
+  console.log(`dotenv loaded successfully`);
   if (result.parsed) {
     console.log(`   Loaded ${Object.keys(result.parsed).length} variables`);
   }
 }
 
 // Debug: Log all Firebase-related env vars
-console.log('\n📋 Environment Variables Check:');
+console.log('\nEnvironment Variables Check:');
 const firebaseVars = [
   'FIREBASE_API_KEY',
   'FIREBASE_AUTH_DOMAIN',
@@ -64,9 +64,9 @@ const firebaseVars = [
 firebaseVars.forEach(varName => {
   const value = process.env[varName];
   if (value) {
-    console.log(`   ✅ ${varName}: ${value.substring(0, 15)}...`);
+    console.log(`   ${varName}: ${value.substring(0, 15)}...`);
   } else {
-    console.log(`   ❌ ${varName}: NOT FOUND`);
+    console.log(`   ${varName}: NOT FOUND`);
   }
 });
 console.log('');
@@ -82,7 +82,7 @@ const firebaseConfig = {
 };
 
 // Log the config values being set (without exposing full API key)
-console.log('\n🔧 Building Firebase Config Object:');
+console.log('\nBuilding Firebase Config Object:');
 console.log(`   apiKey: ${firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 15)}...` : 'UNDEFINED'}`);
 console.log(`   authDomain: ${firebaseConfig.authDomain || 'UNDEFINED'}`);
 console.log(`   projectId: ${firebaseConfig.projectId || 'UNDEFINED'}`);
@@ -150,9 +150,9 @@ const missingKeys = Object.entries(exportedConfig)
   .map(([key]) => key);
 
 if (missingKeys.length > 0) {
-  console.error(`❌ Missing Firebase environment variables: ${missingKeys.join(', ')}`);
+  console.error(`Missing Firebase environment variables: ${missingKeys.join(', ')}`);
   console.error(`   Make sure the .env file exists at: ${envPath}`);
   console.error(`   Required variables: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID`);
 } else {
-  console.log(`✅ Firebase config validation passed - all required fields present`);
+  console.log(`Firebase config validation passed - all required fields present`);
 }
