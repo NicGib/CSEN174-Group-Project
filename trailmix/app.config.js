@@ -71,6 +71,26 @@ firebaseVars.forEach(varName => {
 });
 console.log('');
 
+// Build Firebase config object with explicit value assignment
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY?.trim() || undefined,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN?.trim() || undefined,
+  projectId: process.env.FIREBASE_PROJECT_ID?.trim() || undefined,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET?.trim() || undefined,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID?.trim() || undefined,
+  appId: process.env.FIREBASE_APP_ID?.trim() || undefined
+};
+
+// Log the config values being set (without exposing full API key)
+console.log('\n🔧 Building Firebase Config Object:');
+console.log(`   apiKey: ${firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 15)}...` : 'UNDEFINED'}`);
+console.log(`   authDomain: ${firebaseConfig.authDomain || 'UNDEFINED'}`);
+console.log(`   projectId: ${firebaseConfig.projectId || 'UNDEFINED'}`);
+console.log(`   storageBucket: ${firebaseConfig.storageBucket || 'UNDEFINED'}`);
+console.log(`   messagingSenderId: ${firebaseConfig.messagingSenderId || 'UNDEFINED'}`);
+console.log(`   appId: ${firebaseConfig.appId || 'UNDEFINED'}`);
+console.log('');
+
 module.exports = {
   expo: {
     name: "trailmix",
@@ -118,21 +138,14 @@ module.exports = {
       reactCompiler: true
     },
     extra: {
-      firebase: {
-        apiKey: process.env.FIREBASE_API_KEY,
-        authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.FIREBASE_APP_ID
-      }
+      firebase: firebaseConfig
     }
   }
 };
 
 // Validate Firebase config before exporting
-const firebaseConfig = module.exports.expo.extra.firebase;
-const missingKeys = Object.entries(firebaseConfig)
+const exportedConfig = module.exports.expo.extra.firebase;
+const missingKeys = Object.entries(exportedConfig)
   .filter(([key, value]) => !value)
   .map(([key]) => key);
 
@@ -140,4 +153,6 @@ if (missingKeys.length > 0) {
   console.error(`❌ Missing Firebase environment variables: ${missingKeys.join(', ')}`);
   console.error(`   Make sure the .env file exists at: ${envPath}`);
   console.error(`   Required variables: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID`);
+} else {
+  console.log(`✅ Firebase config validation passed - all required fields present`);
 }
