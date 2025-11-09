@@ -38,6 +38,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="events/[eventId]"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
         name="maps/index"
         options={{
           title: 'Maps',
@@ -56,6 +62,18 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile/[uid]"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="message/[uid]"
+        options={{
+          href: null, // Hide from tab bar
         }}
       />
       <Tabs.Screen

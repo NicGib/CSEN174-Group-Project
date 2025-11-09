@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { SwipeableCard } from '@/components/swipeable-card';
 import {
   getPotentialMatches,
@@ -33,6 +34,7 @@ interface CachedMatches {
 type ViewMode = 'discover' | 'matches';
 
 export default function MatchScreen() {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>('discover');
   const [matches, setMatches] = useState<PotentialMatch[]>([]);
   const [mutualMatches, setMutualMatches] = useState<MutualMatch[]>([]);
@@ -253,7 +255,11 @@ export default function MatchScreen() {
             contentContainerStyle={styles.matchesListContent}
           >
             {mutualMatches.map((match) => (
-              <View key={match.uid} style={styles.matchCard}>
+              <TouchableOpacity
+                key={match.uid}
+                style={styles.matchCard}
+                onPress={() => router.push(`/(tabs)/message/${match.uid}` as any)}
+              >
                 <View style={styles.matchCardContent}>
                   <View style={styles.matchAvatar}>
                     {match.profilePicture ? (
@@ -275,8 +281,9 @@ export default function MatchScreen() {
                       Matched {formatDate(match.matchedAt)}
                     </Text>
                   </View>
+                  <Text style={styles.arrowText}>→</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         )}
@@ -573,6 +580,12 @@ const styles = StyleSheet.create({
   matchDate: {
     fontSize: 12,
     color: '#999',
+  },
+  arrowText: {
+    fontSize: 20,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginLeft: 12,
   },
   cardsContainer: {
     flex: 1,
