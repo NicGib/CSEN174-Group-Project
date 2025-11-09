@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, RefreshControl } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, RefreshControl, ActivityIndicator } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { endpoints } from "../../../src/constants/api";
 import { saveMap, getSavedMaps, deleteSavedMap, SavedMap } from "../../../src/lib/mapStorage";
+import { locationService } from "../../../src/lib/locationService";
 
 export default function MapsScreen() {
   const [lat, setLat] = React.useState("37.3496");
@@ -14,6 +15,8 @@ export default function MapsScreen() {
   const [savedMaps, setSavedMaps] = React.useState<SavedMap[]>([]);
   const [refreshing, setRefreshing] = React.useState(false);
   const [showSaved, setShowSaved] = React.useState(false);
+  const [isGettingLocation, setIsGettingLocation] = React.useState(false);
+  const [isTracking, setIsTracking] = React.useState(false);
 
   const buildUrl = React.useCallback(() => {
     return `${endpoints.maps}?lat=${lat}&lng=${lng}&zoom=${zoom}&style=${encodeURIComponent(style)}&title=${encodeURIComponent(title)}&radius=${radius}`;
@@ -30,7 +33,63 @@ export default function MapsScreen() {
 
   React.useEffect(() => {
     loadSavedMaps();
+    // Start location tracking when component mounts
+    startLocationTracking();
+    
+    // Cleanup: stop tracking when component unmounts
+    return () => {
+      locationService.stopTracking();
+    };
   }, [loadSavedMaps]);
+
+  const startLocationTracking = React.useCallback(async () => {
+    try {
+      const hasPermission = await locationService.checkPermissions();
+      if (!hasPermission) {
+        const granted = await locationService.requestPermissions();
+        if (!granted) {
+          console.warn('Location permission not granted');
+          return;
+        }
+      }
+      
+      const started = await locationService.startTracking({
+        accuracy: 4, // Location.Accuracy.Balanced (4)
+        timeInterval: 10000, // Update every 10 seconds
+        distanceInterval: 50, // Update every 50 meters
+      });
+      
+      if (started) {
+        setIsTracking(true);
+        // Get initial location
+        const location = await locationService.getCurrentLocation();
+        if (location) {
+          setLat(location.latitude.toString());
+          setLng(location.longitude.toString());
+        }
+      }
+    } catch (error) {
+      console.error('Error starting location tracking:', error);
+    }
+  }, []);
+
+  const getCurrentLocation = React.useCallback(async () => {
+    setIsGettingLocation(true);
+    try {
+      const location = await locationService.getCurrentLocation();
+      if (location) {
+        setLat(location.latitude.toString());
+        setLng(location.longitude.toString());
+        Alert.alert("Location Updated", `Lat: ${location.latitude.toFixed(6)}\nLng: ${location.longitude.toFixed(6)}`);
+      } else {
+        Alert.alert("Error", "Could not get current location. Please check permissions.");
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error?.message || "Failed to get location");
+    } finally {
+      setIsGettingLocation(false);
+    }
+  }, []);
 
   const openMap = React.useCallback(async () => {
     const url = buildUrl();
@@ -103,10 +162,27 @@ export default function MapsScreen() {
         
         {!showSaved ? (
           <>
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
               <TextInput placeholder="Lat" value={lat} onChangeText={setLat} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
               <TextInput placeholder="Lng" value={lng} onChangeText={setLng} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
+              <TouchableOpacity
+                onPress={getCurrentLocation}
+                disabled={isGettingLocation}
+                style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: isGettingLocation ? "#ccc" : "#4CAF50", borderRadius: 8, minWidth: 80, alignItems: "center" }}
+              >
+                {isGettingLocation ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>📍 Current</Text>
+                )}
+              </TouchableOpacity>
             </View>
+            {isTracking && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#4CAF50" }} />
+                <Text style={{ fontSize: 12, color: "#4CAF50" }}>Location tracking active</Text>
+              </View>
+            )}
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TextInput placeholder="Zoom" value={zoom} onChangeText={setZoom} keyboardType="number-pad" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
               <TextInput placeholder="Radius km" value={radius} onChangeText={setRadius} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />

@@ -1,80 +1,76 @@
-import { Image } from 'expo-image';
-import { Platform } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
-import { styles } from '../theme';
+import React from "react";
+import { View, Text, Button, Alert, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { auth } from "../../src/lib/firebase";
+import { signOut } from "firebase/auth";
+import { theme, styles } from "../theme";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.indexReactLogo}
-        />
-      }>
-      <ThemedView style={styles.indexTitleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.indexStepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.indexStepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const user = auth.currentUser;
+  const router = useRouter();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.indexStepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const handleSignOut = () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Attempting to sign out...");
+              await signOut(auth);
+              console.log("Sign out successful");
+            } catch (error) {
+              console.error("Sign out error:", error);
+              Alert.alert("Error", "Failed to sign out. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.homeContainer}>
+      <View style={styles.homeHeader}>
+        <Text style={styles.homeTitle}>Welcome to TrailMix!</Text>
+        <Text style={styles.homeSubtitle}>Your hiking companion</Text>
+      </View>
+
+      <View style={styles.homeUserInfo}>
+        <Text style={styles.homeStatusText}>Signed In</Text>
+        <Text style={styles.homeEmailText}>{user?.email}</Text>
+        <Text style={styles.homeUserIdText}>User ID: {user?.uid.slice(0, 8)}...</Text>
+      </View>
+
+      <View style={styles.homeActions}>
+        <TouchableOpacity
+          style={[styles.baseButton, styles.primaryButton, { marginBottom: 12 }]}
+          onPress={() => router.push("/(tabs)/events")}
+        >
+          <Text style={styles.primaryButtonText}>Go to Events</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.baseButton, styles.primaryButton, { marginBottom: 12 }]}
+          onPress={() => router.push("/(tabs)/maps")}
+        >
+          <Text style={styles.primaryButtonText}>Go to Maps</Text>
+        </TouchableOpacity>
+
+        <Button 
+          title="Sign Out" 
+          onPress={handleSignOut}
+          color="#ff4444"
+        />
+      </View>
+    </LinearGradient>
   );
 }

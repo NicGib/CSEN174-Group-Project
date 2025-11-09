@@ -10,6 +10,7 @@ export default function RootLayout() {
   const [ready, setReady] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
   const [isNavigating, setIsNavigating] = React.useState(false);
+  const [lastPathname, setLastPathname] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     console.log("Setting up auth state listener...");
@@ -26,6 +27,20 @@ export default function RootLayout() {
     
     const inAuthStack = pathname?.startsWith("/(auth)");
     const isMainApp = pathname === "/";
+    // Check for tab routes - Expo Router pathnames don't include the (tabs) prefix
+    // Tab routes are: /, /explore, /events, /events/..., /maps, /match, /match/..., /profile, /profile/..., /message/..., /debug
+    const isTabRoute = pathname === "/" || 
+      pathname === "/explore" ||
+      pathname?.startsWith("/events") ||
+      pathname?.startsWith("/maps") ||
+      pathname?.startsWith("/match") ||
+      pathname?.startsWith("/profile") ||
+      pathname?.startsWith("/message") ||
+      pathname?.startsWith("/debug");
+    
+    // Check if pathname changed (user is navigating)
+    const pathnameChanged = lastPathname !== pathname;
+    setLastPathname(pathname);
     
     console.log("🔍 ROUTING DEBUG:", { 
       ready, 
@@ -33,25 +48,37 @@ export default function RootLayout() {
       pathname, 
       inAuthStack,
       isMainApp,
+      isTabRoute,
+      pathnameChanged,
       timestamp: new Date().toISOString()
     });
     
     if (!user) {
       // User is not authenticated
-      if (isMainApp) {
-        console.log("🚨 REDIRECTING: Not authenticated and on main app -> going to auth home");
+      if (isMainApp || isTabRoute) {
+        console.log("🚨 REDIRECTING: Not authenticated and on main app/tabs -> going to auth home");
         router.replace("/(auth)/home");
       }
       // If not authenticated and in auth stack, stay there (allow navigation)
     } else {
       // User is authenticated
       if (inAuthStack) {
-        console.log("🚨 REDIRECTING: Authenticated user in auth stack -> going to main app");
-        router.replace("/");
+        console.log("🚨 REDIRECTING: Authenticated user in auth stack -> going to tabs");
+        router.replace("/(tabs)");
+      } else if (isMainApp) {
+        // Only redirect on initial load (when lastPathname is null)
+        // Don't redirect if we're passing through "/" during navigation
+        if (lastPathname === null) {
+          // Initial load - redirect immediately
+          console.log("🚨 REDIRECTING: Initial load on root -> going to tabs");
+          router.replace("/(tabs)");
+        }
+        // If we're on "/" but lastPathname is not null, we might be in the middle of navigation
+        // Don't redirect - let the navigation complete
       }
-      // If authenticated and on main app, stay there
+      // If authenticated and in tabs, stay there (don't redirect)
     }
-  }, [ready, user, pathname]);
+  }, [ready, user, pathname, lastPathname]);
 
   if (!ready) {
     return (
