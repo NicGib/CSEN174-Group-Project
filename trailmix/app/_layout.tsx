@@ -1,92 +1,58 @@
-import React from "react";
-import { Slot, usePathname, useRouter } from "expo-router";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../src/lib/firebase";
-import { ActivityIndicator, View } from "react-native";
+// app/_layout.tsx
+import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { useRouter, useSegments } from "expo-router";
+import { useAuth } from "@/hooks/use-auth";
+import { View, ActivityIndicator } from "react-native";
 
-export default function RootLayout() {
+function RootLayoutNav() {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
   const router = useRouter();
-  const pathname = usePathname();
-  const [ready, setReady] = React.useState(false);
-  const [user, setUser] = React.useState<User | null>(null);
-  const [isNavigating, setIsNavigating] = React.useState(false);
-  const [lastPathname, setLastPathname] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    console.log("Setting up auth state listener...");
-    const unsub = onAuthStateChanged(auth, (u) => {
-      console.log("Auth state changed:", u ? `User: ${u.email}` : "No user");
-      setUser(u);
-      setReady(true);
-    });
-    return unsub;
-  }, []);
+  useEffect(() => {
+    if (loading) return;
 
-  React.useEffect(() => {
-    if (!ready) return;
-    
-    const inAuthStack = pathname?.startsWith("/(auth)");
-    const isMainApp = pathname === "/";
-    // Check for tab routes - Expo Router pathnames don't include the (tabs) prefix
-    // Tab routes are: /, /explore, /events, /events/..., /maps, /match, /match/..., /profile, /profile/..., /message/..., /debug
-    const isTabRoute = pathname === "/" || 
-      pathname === "/explore" ||
-      pathname?.startsWith("/events") ||
-      pathname?.startsWith("/maps") ||
-      pathname?.startsWith("/match") ||
-      pathname?.startsWith("/profile") ||
-      pathname?.startsWith("/message") ||
-      pathname?.startsWith("/debug");
-    
-    // Check if pathname changed (user is navigating)
-    const pathnameChanged = lastPathname !== pathname;
-    setLastPathname(pathname);
-    
-    console.log("🔍 ROUTING DEBUG:", { 
-      ready, 
-      user: user?.email, 
-      pathname, 
-      inAuthStack,
-      isMainApp,
-      isTabRoute,
-      pathnameChanged,
-      timestamp: new Date().toISOString()
-    });
-    
+    const inAuthGroup = segments[0] === "(auth)";
+    const inTabsGroup = segments[0] === "(tabs)";
+
+    // Only redirect if we're not already on the correct screen
     if (!user) {
-      // User is not authenticated
-      if (isMainApp || isTabRoute) {
-        console.log("🚨 REDIRECTING: Not authenticated and on main app/tabs -> going to auth home");
-        router.replace("/(auth)/home");
+      // User is not signed in - should be in auth group
+      if (!inAuthGroup) {
+        router.replace("/(auth)/sign-in");
       }
-      // If not authenticated and in auth stack, stay there (allow navigation)
     } else {
-      // User is authenticated
-      if (inAuthStack) {
-        console.log("🚨 REDIRECTING: Authenticated user in auth stack -> going to tabs");
+      // User is signed in - should be in tabs group
+      if (inAuthGroup || (!inTabsGroup && segments.length > 0)) {
         router.replace("/(tabs)");
-      } else if (isMainApp) {
-        // Only redirect on initial load (when lastPathname is null)
-        // Don't redirect if we're passing through "/" during navigation
-        if (lastPathname === null) {
-          // Initial load - redirect immediately
-          console.log("🚨 REDIRECTING: Initial load on root -> going to tabs");
-          router.replace("/(tabs)");
-        }
-        // If we're on "/" but lastPathname is not null, we might be in the middle of navigation
-        // Don't redirect - let the navigation complete
       }
-      // If authenticated and in tabs, stay there (don't redirect)
     }
-  }, [ready, user, pathname, lastPathname]);
+  }, [user, loading, segments]);
 
-  if (!ready) {
+  if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
       </View>
     );
   }
 
-  return <Slot />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="modal"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return <RootLayoutNav />;
 }

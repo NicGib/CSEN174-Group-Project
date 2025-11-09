@@ -10,21 +10,36 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useSegments } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
+import { popRoute } from '@/src/lib/navigationStack';
 
 export default function MessageScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const segments = useSegments();
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
   const handleBack = () => {
-    // Navigate directly to match tab using the exact screen name from _layout.tsx
-    navigation.navigate('match/index' as never);
+    // Try to get the previous route from navigation stack
+    const previousRoute = popRoute();
+    
+    if (previousRoute) {
+      console.log('Navigating back to stored route:', previousRoute);
+      router.replace(previousRoute as any);
+    } else if (router.canGoBack()) {
+      // Fallback to router's back navigation
+      console.log('Using router.back()');
+      router.back();
+    } else {
+      // Default fallback to match tab
+      console.log('Defaulting to match tab');
+      router.replace('/(tabs)/match');
+    }
   };
 
   useEffect(() => {
@@ -108,7 +123,7 @@ export default function MessageScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -183,6 +198,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    minWidth: 60,
+    minHeight: 44,
   },
   backButtonText: {
     fontSize: 16,

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { pushRoute } from '@/src/lib/navigationStack';
 import { SwipeableCard } from '@/components/swipeable-card';
 import {
   getPotentialMatches,
@@ -258,7 +259,12 @@ export default function MatchScreen() {
               <TouchableOpacity
                 key={match.uid}
                 style={styles.matchCard}
-                onPress={() => router.push(`/(tabs)/message/${match.uid}` as any)}
+                onPress={() => {
+                  // Store current route before navigating to messages
+                  const currentRoute = '/(tabs)/match';
+                  pushRoute(currentRoute);
+                  router.push(`/(tabs)/message/${match.uid}` as any);
+                }}
               >
                 <View style={styles.matchCardContent}>
                   <View style={styles.matchAvatar}>

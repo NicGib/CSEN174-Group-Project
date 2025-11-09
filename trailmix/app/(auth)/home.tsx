@@ -1,6 +1,8 @@
 import React from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "expo-router";
 import { theme, styles } from "../theme";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -8,6 +10,12 @@ export default function Landing() {
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const router = useRouter();
+  const { user } = useAuth();
+
+  // If user is already signed in, redirect to tabs
+  if (user) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <LinearGradient
