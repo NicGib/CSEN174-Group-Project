@@ -98,13 +98,24 @@ export default function EventsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 22, fontWeight: "600" }}>Events</Text>
+    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+      <View style={{ 
+        flexDirection: "row", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        padding: 20,
+        paddingTop: 60,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+      }}>
+        <Text style={{ fontSize: 20, fontWeight: "bold", color: '#333' }}>Events</Text>
         <TouchableOpacity onPress={() => setShowCreate(true)} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#2d6cdf", borderRadius: 8 }}>
           <Text style={{ color: "white", fontWeight: "600" }}>Create</Text>
         </TouchableOpacity>
       </View>
+      
+      <View style={{ flex: 1, padding: 16, gap: 12 }}>
 
       {err ? <Text style={{ color: "#b00020" }}>{err}</Text> : null}
 
@@ -160,6 +171,7 @@ export default function EventsScreen() {
           )}
         />
       )}
+      </View>
 
       <Modal visible={showCreate} animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <View style={{ flex: 1, padding: 16, gap: 10 }}>

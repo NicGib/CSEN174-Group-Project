@@ -148,20 +148,28 @@ export default function MapsScreen() {
   }, [loadSavedMaps]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <View style={{ padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: "#eee" }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>Map</Text>
-          <TouchableOpacity
-            onPress={() => setShowSaved(!showSaved)}
-            style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: showSaved ? "#2d6cdf" : "#ccc", borderRadius: 8 }}
-          >
-            <Text style={{ color: "white", fontWeight: "600" }}>{showSaved ? "New Map" : `Saved (${savedMaps.length})`}</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {!showSaved ? (
-          <>
+    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+      <View style={{ 
+        flexDirection: "row", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        padding: 20,
+        paddingTop: 60,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+      }}>
+        <Text style={{ fontSize: 20, fontWeight: "bold", color: '#333' }}>Maps</Text>
+        <TouchableOpacity
+          onPress={() => setShowSaved(!showSaved)}
+          style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: showSaved ? "#2d6cdf" : "#ccc", borderRadius: 8 }}
+        >
+          <Text style={{ color: "white", fontWeight: "600" }}>{showSaved ? "New Map" : `Saved (${savedMaps.length})`}</Text>
+        </TouchableOpacity>
+      </View>
+      
+      {!showSaved ? (
+        <View style={{ padding: 16, gap: 8 }}>
             <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
               <TextInput placeholder="Lat" value={lat} onChangeText={setLat} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
               <TextInput placeholder="Lng" value={lng} onChangeText={setLng} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
@@ -194,9 +202,8 @@ export default function MapsScreen() {
             <TouchableOpacity onPress={openMap} style={{ alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#2d6cdf", borderRadius: 8 }}>
               <Text style={{ color: "white", fontWeight: "600" }}>Open & Save Map</Text>
             </TouchableOpacity>
-          </>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       
       {showSaved ? (
         <View style={{ flex: 1 }}>
