@@ -134,6 +134,12 @@ export const updateUserProfile = async (
     // Convert updates to Firestore format
     const firestoreUpdates: any = {};
     
+    if (updates.name !== undefined) {
+      firestoreUpdates.name = updates.name;
+    }
+    if (updates.username !== undefined) {
+      firestoreUpdates.username = updates.username;
+    }
     if (updates.preferredName !== undefined) {
       firestoreUpdates.preferredName = updates.preferredName;
     }

@@ -75,7 +75,7 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
 
     if not snap.exists:
         # Create new user profile with comprehensive data
-        doc_ref.set({
+        profile_data = {
             "uid": uid,
             "name": name.strip(),
             "username": _normalize_username(username),
@@ -96,8 +96,19 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
             "gender": None,
             "preferredName": None,
             "birthday": None
-        })
+        }
+        doc_ref.set(profile_data)
         print(f"New user profile created for {name} ({username})")
+        
+        # Automatically add new user to matching index if they have interests
+        # (Note: new users start with empty interests, so this won't do anything initially)
+        try:
+            from ...matching.profile_matching import get_matching_service
+            service = get_matching_service()
+            service.update_user_in_index(uid, profile_data)
+        except Exception as e:
+            # Don't fail user creation if index update fails
+            print(f"Warning: Failed to add user to matching index: {e}")
     else:
         # Update existing user's last login
         doc_ref.update({
@@ -299,6 +310,7 @@ def update_user_profile(uid: str, updates: dict):
     """
     Update user profile fields.
     Only updates fields that are provided in the updates dict.
+    Automatically updates the matching index if interests change.
     """
     try:
         doc_ref = _user_doc_ref(uid)
@@ -307,10 +319,13 @@ def update_user_profile(uid: str, updates: dict):
         if not doc.exists:
             raise ValueError(f"User profile not found for UID: {uid}")
         
+        # Check if interests are being updated (for matching index update)
+        interests_changed = "interests" in updates and updates["interests"] is not None
+        
         # Prepare update dict, converting field names to match Firestore schema
         firestore_updates = {}
         
-        if "interests" in updates and updates["interests"] is not None:
+        if interests_changed:
             firestore_updates["interests"] = updates["interests"]
         
         if "birthday" in updates and updates["birthday"] is not None:
@@ -377,6 +392,20 @@ def update_user_profile(uid: str, updates: dict):
         
         doc_ref.update(firestore_updates)
         print(f"Profile updated for user {uid}")
+        
+        # Automatically update matching index if interests changed
+        if interests_changed:
+            try:
+                from ...matching.profile_matching import get_matching_service
+                service = get_matching_service()
+                # Get updated profile data
+                updated_doc = doc_ref.get()
+                if updated_doc.exists:
+                    updated_profile = updated_doc.to_dict()
+                    service.update_user_in_index(uid, updated_profile)
+            except Exception as e:
+                # Don't fail the profile update if index update fails
+                print(f"Warning: Failed to update matching index for user {uid}: {e}")
         
         # Return updated profile
         updated_doc = doc_ref.get()

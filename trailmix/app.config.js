@@ -106,6 +106,7 @@ module.exports = {
       infoPlist: {
         NSLocationWhenInUseUsageDescription: "This app uses your location to show nearby hiking trails and provide navigation features.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "This app uses your location to track your hiking activities and provide navigation features.",
+        NSLocationAlwaysUsageDescription: "This app uses your location to track your hiking activities and provide navigation features.",
       }
     },
     android: {

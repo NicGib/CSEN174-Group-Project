@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.v1 import events as events_router
 from .api.v1 import accounts as accounts_router
 from .api.v1 import maps as maps_router
+from .api.v1 import matching as matching_router
 
 app = FastAPI(
     title="TrailMix API",
@@ -26,3 +27,4 @@ app.add_middleware(
 app.include_router(events_router.router, prefix="/api/v1")
 app.include_router(accounts_router.router, prefix="/api/v1")
 app.include_router(maps_router.router, prefix="/api/v1")
+app.include_router(matching_router.router, prefix="/api/v1")

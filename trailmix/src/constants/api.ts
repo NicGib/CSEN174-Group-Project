@@ -6,6 +6,7 @@ export const endpoints = {
   events: `${API_BASE_URL}/events`,
   maps: `${API_BASE_URL}/maps`,
   auth: `${API_BASE_URL}/auth`,
+  matching: `${API_BASE_URL}/matching`,
 };
 
 
