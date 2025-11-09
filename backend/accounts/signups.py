@@ -83,13 +83,19 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
             "createdAt": firestore.SERVER_TIMESTAMP,
             "lastLoginAt": firestore.SERVER_TIMESTAMP,
             "isActive": True,
+            "status": "user",  # Default status
             "totalHikes": 0,
             "totalDistance": 0,
             "achievements": [],
             "favoriteTrails": [],
             "hikingLevel": "beginner",
             "bio": "",
-            "profilePicture": ""
+            "profilePicture": "",
+            "interests": [],
+            "profileDescription": "",
+            "gender": None,
+            "preferredName": None,
+            "birthday": None
         })
         print(f"New user profile created for {name} ({username})")
     else:
@@ -285,6 +291,146 @@ def list_all_users():
             print("-" * 50)
     except Exception as e:
         print(f"Error listing users: {e}")
+
+# ─────────────────────────
+# 7. Profile Management Functions
+# ─────────────────────────
+def update_user_profile(uid: str, updates: dict):
+    """
+    Update user profile fields.
+    Only updates fields that are provided in the updates dict.
+    """
+    try:
+        doc_ref = _user_doc_ref(uid)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise ValueError(f"User profile not found for UID: {uid}")
+        
+        # Prepare update dict, converting field names to match Firestore schema
+        firestore_updates = {}
+        
+        if "interests" in updates and updates["interests"] is not None:
+            firestore_updates["interests"] = updates["interests"]
+        
+        if "birthday" in updates and updates["birthday"] is not None:
+            # Convert date to Firestore timestamp
+            from datetime import datetime, date as date_type
+            birthday = updates["birthday"]
+            if isinstance(birthday, str):
+                birthday_date = datetime.fromisoformat(birthday.replace('Z', '+00:00'))
+            elif isinstance(birthday, date_type):
+                # Convert date to datetime (midnight)
+                birthday_date = datetime.combine(birthday, datetime.min.time())
+            else:
+                birthday_date = birthday
+            firestore_updates["birthday"] = birthday_date
+        
+        if "profile_description" in updates and updates["profile_description"] is not None:
+            firestore_updates["profileDescription"] = updates["profile_description"]
+        elif "profileDescription" in updates and updates["profileDescription"] is not None:
+            firestore_updates["profileDescription"] = updates["profileDescription"]
+        
+        if "gender" in updates and updates["gender"] is not None:
+            firestore_updates["gender"] = updates["gender"]
+        
+        if "preferred_name" in updates and updates["preferred_name"] is not None:
+            firestore_updates["preferredName"] = updates["preferred_name"]
+        elif "preferredName" in updates and updates["preferredName"] is not None:
+            firestore_updates["preferredName"] = updates["preferredName"]
+        
+        if "bio" in updates and updates["bio"] is not None:
+            firestore_updates["bio"] = updates["bio"]
+        
+        if "profile_picture" in updates and updates["profile_picture"] is not None:
+            firestore_updates["profilePicture"] = updates["profile_picture"]
+        elif "profilePicture" in updates and updates["profilePicture"] is not None:
+            firestore_updates["profilePicture"] = updates["profilePicture"]
+        
+        if "hiking_level" in updates and updates["hiking_level"] is not None:
+            firestore_updates["hikingLevel"] = updates["hiking_level"]
+        elif "hikingLevel" in updates and updates["hikingLevel"] is not None:
+            firestore_updates["hikingLevel"] = updates["hikingLevel"]
+        
+        if "home_address" in updates and updates["home_address"] is not None:
+            # Handle home address object
+            home_addr = updates["home_address"]
+            if isinstance(home_addr, dict):
+                firestore_updates["homeAddress"] = {
+                    "street": home_addr.get("street"),
+                    "city": home_addr.get("city"),
+                    "state": home_addr.get("state"),
+                    "zipCode": home_addr.get("zip_code") or home_addr.get("zipCode"),
+                    "country": home_addr.get("country"),
+                    "latitude": home_addr.get("latitude"),
+                    "longitude": home_addr.get("longitude"),
+                    "formattedAddress": home_addr.get("formatted_address") or home_addr.get("formattedAddress"),
+                }
+        elif "homeAddress" in updates and updates["homeAddress"] is not None:
+            # Handle camelCase version
+            home_addr = updates["homeAddress"]
+            if isinstance(home_addr, dict):
+                firestore_updates["homeAddress"] = home_addr
+        
+        if not firestore_updates:
+            raise ValueError("No valid fields to update")
+        
+        doc_ref.update(firestore_updates)
+        print(f"Profile updated for user {uid}")
+        
+        # Return updated profile
+        updated_doc = doc_ref.get()
+        return updated_doc.to_dict() if updated_doc.exists else None
+        
+    except Exception as e:
+        print(f"Error updating user profile: {e}")
+        raise RuntimeError(f"Failed to update profile: {e}")
+
+def promote_user_to_wayfarer(admin_uid: str, target_uid: str):
+    """
+    Promote a user to wayfarer status. Only admins can perform this action.
+    
+    Args:
+        admin_uid: UID of the admin performing the promotion
+        target_uid: UID of the user to promote
+    
+    Returns:
+        Updated user profile
+    """
+    try:
+        # Check if admin exists and has admin status
+        admin_ref = _user_doc_ref(admin_uid)
+        admin_doc = admin_ref.get()
+        
+        if not admin_doc.exists:
+            raise ValueError(f"Admin user not found: {admin_uid}")
+        
+        admin_data = admin_doc.to_dict()
+        admin_status = admin_data.get("status", "user")
+        
+        if admin_status != "admin":
+            raise ValueError("Only admins can promote users to wayfarer")
+        
+        # Check if target user exists
+        target_ref = _user_doc_ref(target_uid)
+        target_doc = target_ref.get()
+        
+        if not target_doc.exists:
+            raise ValueError(f"Target user not found: {target_uid}")
+        
+        # Update target user's status
+        target_ref.update({"status": "wayfarer"})
+        print(f"User {target_uid} promoted to wayfarer by admin {admin_uid}")
+        
+        # Return updated profile
+        updated_doc = target_ref.get()
+        return updated_doc.to_dict() if updated_doc.exists else None
+        
+    except ValueError as e:
+        raise ValueError(str(e))
+    except Exception as e:
+        print(f"Error promoting user to wayfarer: {e}")
+        raise RuntimeError(f"Failed to promote user: {e}")
 
 # ─────────────────────────
 # 6. Interactive CLI test

@@ -102,7 +102,11 @@ module.exports = {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription: "This app uses your location to show nearby hiking trails and provide navigation features.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "This app uses your location to track your hiking activities and provide navigation features.",
+      }
     },
     android: {
       adaptiveIcon: {
@@ -112,7 +116,12 @@ module.exports = {
         monochromeImage: "./assets/images/android-icon-monochrome.png"
       },
       edgeToEdgeEnabled: true,
-      predictiveBackGestureEnabled: false
+      predictiveBackGestureEnabled: false,
+      permissions: [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     web: {
       output: "static",
@@ -120,6 +129,14 @@ module.exports = {
     },
     plugins: [
       "expo-router",
+      [
+        "expo-location",
+        {
+          locationAlwaysAndWhenInUsePermission: "This app uses your location to track your hiking activities and provide navigation features.",
+          locationAlwaysPermission: "This app uses your location to track your hiking activities and provide navigation features.",
+          locationWhenInUsePermission: "This app uses your location to show nearby hiking trails and provide navigation features.",
+        }
+      ],
       [
         "expo-splash-screen",
         {

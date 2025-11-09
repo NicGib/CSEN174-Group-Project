@@ -13,6 +13,19 @@ import {
 import { db } from "./firebase";
 import { User } from "firebase/auth";
 
+export type UserStatus = 'user' | 'wayfarer' | 'admin';
+
+export interface HomeAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  formattedAddress?: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -21,9 +34,16 @@ export interface UserProfile {
   createdAt: Timestamp;
   lastLoginAt: Timestamp;
   isActive: boolean;
+  status?: UserStatus;
+  preferredName?: string;
+  interests?: string[];
+  birthday?: Date | Timestamp;
+  profileDescription?: string;
+  gender?: string;
   profilePicture?: string;
   bio?: string;
   hikingLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  homeAddress?: HomeAddress;
   favoriteTrails?: string[];
   totalHikes?: number;
   totalDistance?: number;
@@ -47,10 +67,13 @@ export const createUserProfile = async (
       createdAt: serverTimestamp() as Timestamp,
       lastLoginAt: serverTimestamp() as Timestamp,
       isActive: true,
+      status: 'user',
       totalHikes: 0,
       totalDistance: 0,
       achievements: [],
-      favoriteTrails: []
+      favoriteTrails: [],
+      interests: [],
+      profileDescription: ''
     };
 
     await setDoc(userRef, userProfile);
@@ -103,14 +126,60 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
  */
 export const updateUserProfile = async (
   uid: string, 
-  updates: Partial<Omit<UserProfile, 'uid' | 'createdAt'>>
+  updates: Partial<Omit<UserProfile, 'uid' | 'createdAt' | 'lastLoginAt' | 'isActive'>>
 ): Promise<void> => {
   try {
     const userRef = doc(db, 'users', uid);
-    await updateDoc(userRef, {
-      ...updates,
-      lastLoginAt: serverTimestamp()
-    });
+    
+    // Convert updates to Firestore format
+    const firestoreUpdates: any = {};
+    
+    if (updates.preferredName !== undefined) {
+      firestoreUpdates.preferredName = updates.preferredName;
+    }
+    if (updates.interests !== undefined) {
+      firestoreUpdates.interests = updates.interests;
+    }
+    if (updates.birthday !== undefined) {
+      // Convert Date to Firestore Timestamp if needed
+      if (updates.birthday instanceof Date) {
+        firestoreUpdates.birthday = Timestamp.fromDate(updates.birthday);
+      } else {
+        firestoreUpdates.birthday = updates.birthday;
+      }
+    }
+    if (updates.profileDescription !== undefined) {
+      firestoreUpdates.profileDescription = updates.profileDescription;
+    }
+    if (updates.gender !== undefined) {
+      firestoreUpdates.gender = updates.gender;
+    }
+    if (updates.bio !== undefined) {
+      firestoreUpdates.bio = updates.bio;
+    }
+    if (updates.profilePicture !== undefined) {
+      firestoreUpdates.profilePicture = updates.profilePicture;
+    }
+    if (updates.hikingLevel !== undefined) {
+      firestoreUpdates.hikingLevel = updates.hikingLevel;
+    }
+    if (updates.homeAddress !== undefined) {
+      firestoreUpdates.homeAddress = updates.homeAddress;
+    }
+    if (updates.favoriteTrails !== undefined) {
+      firestoreUpdates.favoriteTrails = updates.favoriteTrails;
+    }
+    if (updates.totalHikes !== undefined) {
+      firestoreUpdates.totalHikes = updates.totalHikes;
+    }
+    if (updates.totalDistance !== undefined) {
+      firestoreUpdates.totalDistance = updates.totalDistance;
+    }
+    if (updates.achievements !== undefined) {
+      firestoreUpdates.achievements = updates.achievements;
+    }
+    
+    await updateDoc(userRef, firestoreUpdates);
     console.log('User profile updated for:', uid);
   } catch (error) {
     console.error('Error updating user profile:', error);
