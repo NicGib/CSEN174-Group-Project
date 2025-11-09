@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { auth } from '@/src/lib/firebase';
+import { pushRoute } from '@/src/lib/navigationStack';
 
 export default function ViewProfileScreen() {
   const router = useRouter();
@@ -21,8 +22,12 @@ export default function ViewProfileScreen() {
   const [loading, setLoading] = useState(true);
 
   const handleBack = () => {
-    // Navigate directly to match tab using the exact screen name from _layout.tsx
-    navigation.navigate('match/index' as never);
+    // Navigate back to previous screen
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
   };
 
   useEffect(() => {
@@ -55,6 +60,9 @@ export default function ViewProfileScreen() {
   };
 
   const handleMessage = () => {
+    // Store current route before navigating to messages
+    const currentRoute = `/(tabs)/profile/${uid}`;
+    pushRoute(currentRoute);
     router.push(`/(tabs)/message/${uid}`);
   };
 
@@ -98,7 +106,7 @@ export default function ViewProfileScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -205,6 +213,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    minWidth: 60,
+    minHeight: 44,
   },
   backButtonText: {
     fontSize: 16,

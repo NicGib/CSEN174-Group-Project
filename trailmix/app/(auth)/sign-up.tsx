@@ -52,10 +52,8 @@ export default function SignUp() {
       setName("");
       setUsername("");
 
-      setTimeout(() => {
-        console.log("Manual redirect to home after signup");
-        router.replace("/");
-      }, 100);
+      // Redirect will be handled by root layout based on auth state
+      router.replace("/(tabs)");
     } catch (e: any) {
       console.error("Signup error:", e);
       setErr(`Signup failed: ${e.message} (Code: ${e.code})`);
@@ -78,10 +76,8 @@ export default function SignUp() {
       console.log("User signed in successfully:", userCredential.user.email);
       setEmail("");
       setPw("");
-      setTimeout(() => {
-        console.log("Manual redirect to home after login");
-        router.replace("/");
-      }, 100);
+      // Redirect will be handled by root layout based on auth state
+      router.replace("/(tabs)");
     } catch (e: any) {
       console.error("Login error:", e);
       setErr(`Login failed: ${e.message} (Code: ${e.code})`);

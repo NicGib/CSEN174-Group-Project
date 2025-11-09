@@ -27,8 +27,12 @@ export default function EventAttendeesScreen() {
   const [loading, setLoading] = useState(true);
 
   const handleBack = () => {
-    // Navigate directly to events tab using the exact screen name from _layout.tsx
-    navigation.navigate('events/index' as never);
+    // Navigate back to previous screen
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/events');
+    }
   };
 
   useEffect(() => {
@@ -114,7 +118,7 @@ export default function EventAttendeesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{event.title}</Text>
@@ -206,6 +210,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    minWidth: 60,
+    minHeight: 44,
   },
   backButtonText: {
     fontSize: 16,

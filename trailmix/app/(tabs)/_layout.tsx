@@ -1,88 +1,103 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+// app/(tabs)/_layout.tsx
+import { Tabs } from "expo-router";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "expo-router";
+import { View, ActivityIndicator } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Colors } from "@/constants/theme";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export default function TabLayout() {
+export default function TabsLayout() {
+  const { user, loading } = useAuth();
   const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: colors.tabIconSelected,
+        tabBarInactiveTintColor: colors.tabIconDefault,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Explore",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="explore" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="events/index"
+        name="maps"
         options={{
-          title: 'Events',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
+          title: "Maps",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="map" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="events/[eventId]"
+        name="events"
         options={{
-          href: null, // Hide from tab bar
+          title: "Events",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="event" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="maps/index"
+        name="match"
         options={{
-          title: 'Maps',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="map" color={color} />,
+          title: "Match",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="favorite" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="match/index"
+        name="profile"
         options={{
-          title: 'Match',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.fill" color={color} />,
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="person" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="profile/index"
+        name="debug"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          title: "Debug",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="bug-report" size={size} color={color} />
+          ),
         }}
       />
-      <Tabs.Screen
-        name="profile/[uid]"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="message/[uid]"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="debug/index"
-        options={{
-          title: 'Debug',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
-        }}
-      />
+      {/* Hide nested routes and routes without indices from bottom navigation */}
+      <Tabs.Screen name="message" options={{ href: null }} />
+      <Tabs.Screen name="message/[uid]" options={{ href: null }} />
     </Tabs>
   );
 }
