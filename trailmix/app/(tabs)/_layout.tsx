@@ -97,7 +97,6 @@ export default function TabsLayout() {
       />
       {/* Hide nested routes and routes without indices from bottom navigation */}
       <Tabs.Screen name="message" options={{ href: null }} />
-      <Tabs.Screen name="message/[uid]" options={{ href: null }} />
     </Tabs>
   );
 }
