@@ -12,27 +12,27 @@ if (!fs.existsSync(envPath)) {
   const altPath = path.resolve(process.cwd(), 'secrets/.env');
   if (fs.existsSync(altPath)) {
     envPath = altPath;
-    console.log(`📁 Using alternative path: ${envPath}`);
+    //console.log(`Using alternative path: ${envPath}`);
   }
 }
 
 // Check if .env file exists and log the path for debugging
 if (!fs.existsSync(envPath)) {
-  console.warn(`⚠️  WARNING: .env file not found at: ${envPath}`);
-  console.warn(`   __dirname: ${__dirname}`);
-  console.warn(`   Current working directory: ${process.cwd()}`);
-  console.warn(`   Trying alternative: ${path.resolve(process.cwd(), 'secrets/.env')}`);
+  //console.warn(`WARNING: .env file not found at: ${envPath}`);
+  //console.warn(`   __dirname: ${__dirname}`);
+  //console.warn(`   Current working directory: ${process.cwd()}`);
+  //console.warn(`   Trying alternative: ${path.resolve(process.cwd(), 'secrets/.env')}`);
 } else {
-  console.log(`✅ Loading .env from: ${envPath}`);
+  //console.log(`Loading .env from: ${envPath}`);
   
   // Verify file is readable and has content
   try {
     const stats = fs.statSync(envPath);
     const content = fs.readFileSync(envPath, 'utf8');
     const lines = content.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
-    console.log(`   File size: ${stats.size} bytes, ${lines.length} non-empty lines`);
+    //console.log(`   File size: ${stats.size} bytes, ${lines.length} non-empty lines`);
   } catch (err) {
-    console.warn(`   ⚠️  Could not read file: ${err.message}`);
+    console.warn(`Could not read file: ${err.message}`);
   }
 }
 
@@ -44,14 +44,50 @@ const result = dotenv.config({ path: envPath, override: false });
 if (result.error) {
   console.error(`Error loading .env file:`, result.error);
 } else {
-  console.log(`dotenv loaded successfully`);
+  //console.log(`dotenv loaded successfully`);
   if (result.parsed) {
-    console.log(`   Loaded ${Object.keys(result.parsed).length} variables`);
+    //console.log(`   Loaded ${Object.keys(result.parsed).length} variables`);
   }
 }
 
+// Check for tunnel URL file (created by start-tunnel script or docker entrypoint)
+// Try multiple locations: project root, app directory (for Docker)
+const tunnelUrlPaths = [
+  path.resolve(__dirname, '../../.tunnel-url'),  // Project root
+  path.resolve(__dirname, '.tunnel-url'),        // App directory (Docker)
+  path.resolve(process.cwd(), '.tunnel-url')     // Current working directory
+];
+let tunnelUrl = null;
+for (const tunnelUrlPath of tunnelUrlPaths) {
+  if (fs.existsSync(tunnelUrlPath)) {
+    try {
+      tunnelUrl = fs.readFileSync(tunnelUrlPath, 'utf8').trim();
+      //console.log(`Found tunnel URL: ${tunnelUrl}`);
+      break;
+    } catch (err) {
+      console.warn(`Could not read tunnel URL file: ${err.message}`);
+    }
+  }
+}
+
+// Determine API base URL
+// Priority: tunnel URL > EXPO_PUBLIC_API_BASE_URL env var > default localhost
+// Always prefer tunnel URL when available (for cloudflared)
+let apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+if (tunnelUrl) {
+  // Always use tunnel URL if available (cloudflared)
+  apiBaseUrl = `${tunnelUrl}/api/v1`;
+  console.log(`Using cloudflared tunnel API URL: ${apiBaseUrl}`);
+} else if (apiBaseUrl) {
+  console.log(`Using API URL from environment: ${apiBaseUrl}`);
+} else {
+  apiBaseUrl = "http://localhost:8000/api/v1";
+  console.warn(`Using default localhost API URL: ${apiBaseUrl}`);
+  console.warn(`   (No tunnel URL found - make sure cloudflared is running)`);
+}
+
 // Debug: Log all Firebase-related env vars
-console.log('\nEnvironment Variables Check:');
+/*console.log('\nEnvironment Variables Check:');
 const firebaseVars = [
   'FIREBASE_API_KEY',
   'FIREBASE_AUTH_DOMAIN',
@@ -59,17 +95,17 @@ const firebaseVars = [
   'FIREBASE_STORAGE_BUCKET',
   'FIREBASE_MESSAGING_SENDER_ID',
   'FIREBASE_APP_ID'
-];
+];*/
 
-firebaseVars.forEach(varName => {
+/*firebaseVars.forEach(varName => {
   const value = process.env[varName];
   if (value) {
     console.log(`   ${varName}: ${value.substring(0, 15)}...`);
   } else {
     console.log(`   ${varName}: NOT FOUND`);
   }
-});
-console.log('');
+});*/
+/*console.log('');*/
 
 // Build Firebase config object with explicit value assignment
 const firebaseConfig = {
@@ -82,14 +118,14 @@ const firebaseConfig = {
 };
 
 // Log the config values being set (without exposing full API key)
-console.log('\nBuilding Firebase Config Object:');
+/*console.log('\nBuilding Firebase Config Object:');
 console.log(`   apiKey: ${firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 15)}...` : 'UNDEFINED'}`);
 console.log(`   authDomain: ${firebaseConfig.authDomain || 'UNDEFINED'}`);
 console.log(`   projectId: ${firebaseConfig.projectId || 'UNDEFINED'}`);
 console.log(`   storageBucket: ${firebaseConfig.storageBucket || 'UNDEFINED'}`);
 console.log(`   messagingSenderId: ${firebaseConfig.messagingSenderId || 'UNDEFINED'}`);
 console.log(`   appId: ${firebaseConfig.appId || 'UNDEFINED'}`);
-console.log('');
+console.log('');*/
 
 module.exports = {
   expo: {
@@ -156,7 +192,8 @@ module.exports = {
       reactCompiler: true
     },
     extra: {
-      firebase: firebaseConfig
+      firebase: firebaseConfig,
+      apiBaseUrl: apiBaseUrl
     }
   }
 };
@@ -167,10 +204,10 @@ const missingKeys = Object.entries(exportedConfig)
   .filter(([key, value]) => !value)
   .map(([key]) => key);
 
-if (missingKeys.length > 0) {
+/*if (missingKeys.length > 0) {
   console.error(`Missing Firebase environment variables: ${missingKeys.join(', ')}`);
   console.error(`   Make sure the .env file exists at: ${envPath}`);
   console.error(`   Required variables: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID`);
 } else {
   console.log(`Firebase config validation passed - all required fields present`);
-}
+}*/
