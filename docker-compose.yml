@@ -1,0 +1,89 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trailmix-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount secrets directory for Firebase credentials and .env
+      # Backend code looks for secrets at /app/secrets (3 levels up from backend/accounts/signups.py)
+      - ./secrets:/app/secrets:ro
+    environment:
+      - CORS_ALLOW_ORIGINS=*
+    env_file:
+      - ./secrets/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - trailmix-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: trailmix-cloudflared
+    command: tunnel --url http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - trailmix-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Logs will contain the tunnel URL - we'll extract it via docker logs
+
+  frontend:
+    build:
+      context: ./trailmix
+      dockerfile: Dockerfile
+    container_name: trailmix-frontend
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./trailmix:/app
+      - /app/node_modules
+      - ./secrets:/app/secrets:ro
+      # Mount Docker socket so frontend can read cloudflared logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # This will be overridden by the entrypoint script with the cloudflared tunnel URL
+      - EXPO_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+      - EXPO_USE_TUNNEL=true
+      # Force unbuffered output for better QR code visibility
+      - PYTHONUNBUFFERED=1
+      - NODE_ENV=development
+    depends_on:
+      backend:
+        condition: service_healthy
+      cloudflared:
+        condition: service_started
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    # Ensure logs are shown in real-time
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - trailmix-network
+
+networks:
+  trailmix-network:
+    driver: bridge
+
