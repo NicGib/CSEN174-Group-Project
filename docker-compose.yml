@@ -1,4 +1,40 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: trailmix-postgres
+    environment:
+      - POSTGRES_USER=trailmix
+      - POSTGRES_PASSWORD=trailmix_password
+      - POSTGRES_DB=trailmix_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - trailmix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trailmix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: trailmix-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - trailmix-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -12,8 +48,15 @@ services:
       - ./secrets:/app/secrets:ro
     environment:
       - CORS_ALLOW_ORIGINS=*
+      - DATABASE_URL=postgresql://trailmix:trailmix_password@postgres:5432/trailmix_db
+      - REDIS_URL=redis://redis:6379/0
     env_file:
       - ./secrets/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
@@ -82,6 +125,10 @@ services:
         max-file: "3"
     networks:
       - trailmix-network
+
+volumes:
+  postgres_data:
+  redis_data:
 
 networks:
   trailmix-network:

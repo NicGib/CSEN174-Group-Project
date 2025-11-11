@@ -31,6 +31,15 @@ export const endpoints = {
   maps: `${API_BASE_URL}/maps`,
   auth: `${API_BASE_URL}/auth`,
   matching: `${API_BASE_URL}/matching`,
+  messaging: `${API_BASE_URL}/messaging`,
+};
+
+// Get WebSocket URL (convert http/https to ws/wss)
+export const getWebSocketUrl = (): string => {
+  if (API_BASE_URL.startsWith('https://')) {
+    return API_BASE_URL.replace(/^https/, 'wss');
+  }
+  return API_BASE_URL.replace(/^http/, 'ws');
 };
 
 

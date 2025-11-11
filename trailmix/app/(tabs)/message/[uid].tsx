@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,34 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  FlatList,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useSegments } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { popRoute } from '@/src/lib/navigationStack';
+import { useAuth } from '@/hooks/use-auth';
+import {
+  sendMessage,
+  getConversationMessages,
+  MessagingWebSocket,
+  Message,
+} from '@/src/lib/messagingService';
 
 export default function MessageScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const segments = useSegments();
   const { uid } = useLocalSearchParams<{ uid: string }>();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const wsRef = useRef<MessagingWebSocket | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   const handleBack = () => {
     // Try to get the previous route from navigation stack
@@ -42,9 +56,44 @@ export default function MessageScreen() {
     }
   };
 
+  const handleNewMessage = (newMessage: Message) => {
+    // Only add message if it's for this conversation
+    if (
+      (newMessage.sender_uid === uid && newMessage.receiver_uid === user?.uid) ||
+      (newMessage.sender_uid === user?.uid && newMessage.receiver_uid === uid)
+    ) {
+      setMessages((prev) => {
+        // Check if message already exists (avoid duplicates)
+        if (prev.some((m) => m.id === newMessage.id)) {
+          return prev;
+        }
+        return [...prev, newMessage];
+      });
+      
+      // Scroll to bottom when new message arrives
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  };
+
   useEffect(() => {
     loadProfile();
-  }, [uid]);
+    loadMessages();
+    
+    // Set up WebSocket connection
+    if (user?.uid) {
+      wsRef.current = new MessagingWebSocket(user.uid, handleNewMessage);
+      wsRef.current.connect();
+    }
+    
+    return () => {
+      // Cleanup WebSocket on unmount
+      if (wsRef.current) {
+        wsRef.current.disconnect();
+      }
+    };
+  }, [uid, user?.uid]);
 
   const loadProfile = async () => {
     try {
@@ -71,14 +120,79 @@ export default function MessageScreen() {
     }
   };
 
+  const loadMessages = async () => {
+    if (!user?.uid || !uid) return;
+    
+    try {
+      const conversationMessages = await getConversationMessages(user.uid, uid);
+      setMessages(conversationMessages);
+      
+      // Scroll to bottom after loading
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    } catch (error: any) {
+      console.error('Error loading messages:', error);
+      // Don't show alert for initial load errors
+    }
+  };
+
   const handleViewProfile = () => {
     router.push(`/(tabs)/profile/${uid}`);
   };
 
-  const handleSend = () => {
-    // TODO: Implement messaging functionality
-    Alert.alert('Coming Soon', 'Messaging functionality will be available soon!');
+  const handleSend = async () => {
+    if (!message.trim() || !user?.uid || sending) return;
+    
+    const messageContent = message.trim();
     setMessage('');
+    setSending(true);
+    
+    try {
+      const sentMessage = await sendMessage(user.uid, uid, messageContent);
+      
+      // Add message to local state immediately
+      setMessages((prev) => [...prev, sentMessage]);
+      
+      // Scroll to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', error.message || 'Failed to send message');
+      setMessage(messageContent); // Restore message on error
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const renderMessage = ({ item }: { item: Message }) => {
+    const isMyMessage = item.sender_uid === user?.uid;
+    
+    return (
+      <View
+        style={[
+          styles.messageBubble,
+          isMyMessage ? styles.myMessage : styles.otherMessage,
+        ]}
+      >
+        <Text style={isMyMessage ? styles.myMessageText : styles.otherMessageText}>
+          {item.content}
+        </Text>
+        <Text
+          style={[
+            styles.messageTime,
+            isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
+          ]}
+        >
+          {new Date(item.created_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </Text>
+      </View>
+    );
   };
 
   if (loading) {
@@ -153,11 +267,22 @@ export default function MessageScreen() {
       </View>
 
       <View style={styles.messagesContainer}>
-        <View style={styles.emptyMessagesContainer}>
-          <Text style={styles.emptyMessagesText}>
-            No messages yet. Start a conversation!
-          </Text>
-        </View>
+        {messages.length === 0 ? (
+          <View style={styles.emptyMessagesContainer}>
+            <Text style={styles.emptyMessagesText}>
+              No messages yet. Start a conversation!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.messagesList}
+            inverted={false}
+          />
+        )}
       </View>
 
       <View style={styles.inputContainer}>
@@ -170,11 +295,15 @@ export default function MessageScreen() {
           maxLength={500}
         />
         <TouchableOpacity
-          style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+          style={[styles.sendButton, (!message.trim() || sending) && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!message.trim()}
+          disabled={!message.trim() || sending}
         >
-          <Text style={styles.sendButtonText}>Send</Text>
+          {sending ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.sendButtonText}>Send</Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -269,12 +398,51 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+  },
+  messagesList: {
     padding: 16,
+  },
+  messageBubble: {
+    maxWidth: '75%',
+    padding: 12,
+    borderRadius: 18,
+    marginBottom: 8,
+  },
+  myMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#4CAF50',
+    borderBottomRightRadius: 4,
+  },
+  otherMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E0E0E0',
+    borderBottomLeftRadius: 4,
+  },
+  myMessageText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  otherMessageText: {
+    color: '#333',
+    fontSize: 16,
+  },
+  messageTime: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  myMessageTime: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'right',
+  },
+  otherMessageTime: {
+    color: '#666',
+    textAlign: 'left',
   },
   emptyMessagesContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
   },
   emptyMessagesText: {
     fontSize: 16,
