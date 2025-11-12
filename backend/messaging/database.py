@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from ..config import get_database_url
 
-# Get database URL from config loader (checks env vars, config.json, then defaults)
+# Get database URL from config loader (reads from secrets/.env or environment variables)
 DATABASE_URL = get_database_url()
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
