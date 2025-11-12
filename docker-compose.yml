@@ -4,7 +4,7 @@ services:
     container_name: trailmix-postgres
     environment:
       - POSTGRES_USER=trailmix
-      - POSTGRES_PASSWORD=trailmix_password
+      - POSTGRES_PASSWORD=wayfarers
       - POSTGRES_DB=trailmix_db
     ports:
       - "5432:5432"
@@ -14,7 +14,7 @@ services:
     networks:
       - trailmix-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trailmix"]
+      test: ["CMD-SHELL", "pg_isready -U trailmix -d trailmix_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,8 +48,6 @@ services:
       - ./secrets:/app/secrets:ro
     environment:
       - CORS_ALLOW_ORIGINS=*
-      - DATABASE_URL=postgresql://trailmix:trailmix_password@postgres:5432/trailmix_db
-      - REDIS_URL=redis://redis:6379/0
     env_file:
       - ./secrets/.env
     depends_on:

@@ -50,6 +50,14 @@ if (result.error) {
   }
 }
 
+// Configuration file paths for persistent API URL storage
+const apiUrlConfigPaths = [
+  path.resolve(__dirname, '../../secrets/api-url.txt'),  // Project root secrets
+  path.resolve(__dirname, '../secrets/api-url.txt'),    // From trailmix directory
+  path.resolve(__dirname, 'secrets/api-url.txt'),       // App directory secrets
+  path.resolve(process.cwd(), 'secrets/api-url.txt')    // Current working directory
+];
+
 // Check for tunnel URL file (created by start-tunnel script or docker entrypoint)
 // Try multiple locations: project root, app directory (for Docker)
 const tunnelUrlPaths = [
@@ -57,6 +65,41 @@ const tunnelUrlPaths = [
   path.resolve(__dirname, '.tunnel-url'),        // App directory (Docker)
   path.resolve(process.cwd(), '.tunnel-url')     // Current working directory
 ];
+
+// Function to read API URL from persistent config file
+function readPersistedApiUrl() {
+  for (const configPath of apiUrlConfigPaths) {
+    if (fs.existsSync(configPath)) {
+      try {
+        const url = fs.readFileSync(configPath, 'utf8').trim();
+        if (url) {
+          return url;
+        }
+      } catch (err) {
+        console.warn(`Could not read API URL config file: ${err.message}`);
+      }
+    }
+  }
+  return null;
+}
+
+// Function to write API URL to persistent config file
+function writePersistedApiUrl(url) {
+  // Use the first writable path (project root secrets directory)
+  const writePath = apiUrlConfigPaths[0];
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(writePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(writePath, url, 'utf8');
+    //console.log(`Persisted API URL to: ${writePath}`);
+  } catch (err) {
+    console.warn(`Could not write API URL config file: ${err.message}`);
+  }
+}
+
 let tunnelUrl = null;
 for (const tunnelUrlPath of tunnelUrlPaths) {
   if (fs.existsSync(tunnelUrlPath)) {
@@ -71,19 +114,29 @@ for (const tunnelUrlPath of tunnelUrlPaths) {
 }
 
 // Determine API base URL
-// Priority: tunnel URL > EXPO_PUBLIC_API_BASE_URL env var > default localhost
-// Always prefer tunnel URL when available (for cloudflared)
+// Priority: tunnel URL > EXPO_PUBLIC_API_BASE_URL env var > persisted config file > default localhost
 let apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 if (tunnelUrl) {
   // Always use tunnel URL if available (cloudflared)
   apiBaseUrl = `${tunnelUrl}/api/v1`;
   console.log(`Using cloudflared tunnel API URL: ${apiBaseUrl}`);
+  // Persist the tunnel URL for future use
+  writePersistedApiUrl(apiBaseUrl);
 } else if (apiBaseUrl) {
   console.log(`Using API URL from environment: ${apiBaseUrl}`);
+  // Persist the environment variable for future use
+  writePersistedApiUrl(apiBaseUrl);
 } else {
-  apiBaseUrl = "http://localhost:8000/api/v1";
-  console.warn(`Using default localhost API URL: ${apiBaseUrl}`);
-  console.warn(`   (No tunnel URL found - make sure cloudflared is running)`);
+  // Try to read from persisted config file
+  const persistedUrl = readPersistedApiUrl();
+  if (persistedUrl) {
+    apiBaseUrl = persistedUrl;
+    console.log(`Using persisted API URL: ${apiBaseUrl}`);
+  } else {
+    apiBaseUrl = "http://localhost:8000/api/v1";
+    console.warn(`Using default localhost API URL: ${apiBaseUrl}`);
+    console.warn(`   (No tunnel URL or persisted config found - make sure cloudflared is running or set EXPO_PUBLIC_API_BASE_URL)`);
+  }
 }
 
 // Debug: Log all Firebase-related env vars
