@@ -74,7 +74,7 @@ echo.
 cd /d "%FRONTEND_DIR%"
 REM Don't use --tunnel flag - we're using cloudflared, not Expo's ngrok
 set EXPO_PUBLIC_API_BASE_URL=!TUNNEL_URL!/api/v1
-call npx expo start --tunnel
+call npx expo start --tunnel -c
 
 endlocal
 
