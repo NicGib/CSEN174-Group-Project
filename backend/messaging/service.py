@@ -5,9 +5,10 @@ from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc
 from .models import Message
+from ..config import get_redis_url
 
-# Redis connection
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Redis connection - uses config loader (checks env vars, config.json, then defaults)
+REDIS_URL = get_redis_url()
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
 def get_redis():

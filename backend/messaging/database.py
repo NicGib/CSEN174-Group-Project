@@ -2,12 +2,10 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from ..config import get_database_url
 
-# Get database URL from environment variable, with fallback
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://trailmix:trailmix_password@localhost:5432/trailmix_db"
-)
+# Get database URL from config loader (checks env vars, config.json, then defaults)
+DATABASE_URL = get_database_url()
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
