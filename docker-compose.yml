@@ -4,7 +4,7 @@ services:
     container_name: trailmix-postgres
     environment:
       - POSTGRES_USER=trailmix
-      - POSTGRES_PASSWORD=trailmix_password
+      - POSTGRES_PASSWORD=wayfarers
       - POSTGRES_DB=trailmix_db
     ports:
       - "5432:5432"
