@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -6,6 +6,8 @@ import { EmbeddedMap, EmbeddedMapRef } from '@/components/maps/EmbeddedMap';
 import { AddressSearchBar } from '@/components/maps/AddressSearchBar';
 import { MapControls } from '@/components/maps/MapControls';
 import { LocationData } from '@/src/lib/locationService';
+import { useAuth } from '@/hooks/use-auth';
+import { getUserProfile, UserProfile } from '@/src/lib/userService';
 
 /**
  * Live Map Screen
@@ -18,6 +20,27 @@ export default function MapsScreen() {
   const [isManualLocation, setIsManualLocation] = useState(false);
   const [mapLocation, setMapLocation] = useState<LocationData | null>(null);
   const [searchedLocation, setSearchedLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // Get current user
+  const { user } = useAuth();
+
+  // Load user profile
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.uid) {
+        try {
+          const profile = await getUserProfile(user.uid);
+          if (profile) {
+            setUserProfile(profile);
+          }
+        } catch (error) {
+          console.error('Error loading user profile:', error);
+        }
+      }
+    };
+    loadProfile();
+  }, [user]);
 
   // Use location tracking hook
   const { isTracking, currentLocation, getCurrentLocation } = useLocationTracking({
@@ -81,6 +104,16 @@ export default function MapsScreen() {
         ref={mapRef}
         location={mapLocation}
         searchedLocation={searchedLocation}
+        userProfile={userProfile ? {
+          uid: userProfile.uid,
+          name: userProfile.name,
+          username: userProfile.username,
+          profilePicture: userProfile.profilePicture,
+          totalHikes: userProfile.totalHikes,
+          totalDistance: userProfile.totalDistance,
+          achievements: userProfile.achievements,
+          hikingLevel: userProfile.hikingLevel,
+        } : null}
         defaultLatitude={37.3496}
         defaultLongitude={-121.9390}
       />

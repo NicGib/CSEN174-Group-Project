@@ -3,9 +3,21 @@ import { View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LocationData } from '@/src/lib/locationService';
 
+interface UserProfileData {
+  uid?: string;
+  name?: string;
+  username?: string;
+  profilePicture?: string;
+  totalHikes?: number;
+  totalDistance?: number;
+  achievements?: string[];
+  hikingLevel?: string;
+}
+
 interface EmbeddedMapProps {
   location: LocationData | null;
   searchedLocation?: { latitude: number; longitude: number; address?: string } | null;
+  userProfile?: UserProfileData | null;
   defaultLatitude?: number;
   defaultLongitude?: number;
   onLocationUpdate?: (location: LocationData) => void;
@@ -24,7 +36,7 @@ export interface EmbeddedMapRef {
  * Handles map rendering and location updates
  */
 export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
-  ({ location, searchedLocation, defaultLatitude = 37.3496, defaultLongitude = -121.9390, onLocationUpdate }, ref) => {
+  ({ location, searchedLocation, userProfile, defaultLatitude = 37.3496, defaultLongitude = -121.9390, onLocationUpdate }, ref) => {
     const mapRef = React.useRef<any>(null);
 
   // Generate HTML with initial coordinates from React
@@ -38,6 +50,19 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
     <style>
         body { margin: 0; padding: 0; }
         #map { width: 100%; height: 100vh; }
+        /* Custom popup styling - remove default Leaflet popup padding/margin */
+        .custom-profile-popup .leaflet-popup-content-wrapper {
+            padding: 0;
+            border-radius: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .custom-profile-popup .leaflet-popup-content {
+            margin: 0;
+            width: auto !important;
+        }
+        .custom-profile-popup .leaflet-popup-tip {
+            background: #fff;
+        }
         .custom-marker {
             position: relative;
             margin: 0;
@@ -203,8 +228,29 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
                 zIndexOffset: 1000 // Ensure marker is above circle
             }).addTo(window.mapInstance);
             
-            // Bind popup once
-            window.markerInstance.bindPopup('');
+            // Bind popup once (empty, will be populated by updateUserProfilePopup)
+            window.markerInstance.bindPopup('', {
+                closeOnClick: false,
+                autoClose: false
+            });
+            
+            // Open popup when marker is clicked
+            window.markerInstance.on('click', function(e) {
+                // Stop event propagation to prevent map click from closing it immediately
+                L.DomEvent.stopPropagation(e);
+                // Ensure popup content is up to date before opening
+                if (window.updateUserProfilePopup && window.__currentProfileData) {
+                    window.updateUserProfilePopup(window.__currentProfileData);
+                }
+                window.markerInstance.openPopup();
+            });
+            
+            // Close popup when clicking anywhere else on the map
+            window.mapInstance.on('click', function() {
+                if (window.markerInstance && window.markerInstance.isPopupOpen()) {
+                    window.markerInstance.closePopup();
+                }
+            });
             
             // Initialize searched location marker (starts as null)
             window.searchedMarkerInstance = null;
@@ -243,14 +289,14 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
                 window.markerInstance.bringToFront();
             }
             
-            // Update popup content (don't rebind, just update)
-            const accuracyText = accuracyMeters ? 'Accuracy: ' + accuracyMeters.toFixed(0) + 'm<br>' : '';
-            const html = 'Your Location<br>' + accuracyText + 'Lat: ' + newLat.toFixed(6) + '<br>Lng: ' + newLng.toFixed(6);
-            const popup = window.markerInstance.getPopup();
-            if (popup) {
-                popup.setContent(html);
-            } else {
-                window.markerInstance.bindPopup(html);
+            // Don't update popup content here - it's handled by updateUserProfilePopup
+            // Just ensure popup exists
+            if (!window.markerInstance.getPopup()) {
+                window.markerInstance.bindPopup('', {
+                    className: 'custom-profile-popup',
+                    closeOnClick: false,
+                    autoClose: false
+                });
             }
             
             // Only recenter if explicitly requested (e.g., from "My Location" button)
@@ -288,6 +334,79 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
             if (window.searchedMarkerInstance && window.mapInstance) {
                 window.mapInstance.removeLayer(window.searchedMarkerInstance);
                 window.searchedMarkerInstance = null;
+            }
+        };
+        
+        // Update user profile popup
+        window.updateUserProfilePopup = function(profileData) {
+            if (!window.mapInstance || !window.markerInstance) return;
+            
+            // Store profile data for click handler
+            window.__currentProfileData = profileData;
+            
+            let html = '';
+            if (profileData && (profileData.name || profileData.username)) {
+                // Build profile popup HTML - ID card style (fills entire popup)
+                const name = profileData.name || profileData.username || 'User';
+                const username = profileData.username ? '@' + profileData.username : '';
+                const profilePic = profileData.profilePicture || '';
+                const totalHikes = profileData.totalHikes || 0;
+                const totalDistance = profileData.totalDistance || 0;
+                const hikingLevel = profileData.hikingLevel || 'beginner';
+                const achievements = profileData.achievements || [];
+                
+                html = '<div style="display: flex; padding: 10px; min-width: 240px; max-width: 280px; background: #fff; border-radius: 0; margin: 0;">';
+                
+                // Left side - Profile picture
+                html += '<div style="flex-shrink: 0; margin-right: 10px;">';
+                if (profilePic) {
+                    html += '<img src="' + profilePic + '" style="width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 2px solid #617337;" />';
+                } else {
+                    html += '<div style="width: 60px; height: 60px; border-radius: 6px; background: #617337; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 24px; border: 2px solid #617337;">' + (name.charAt(0).toUpperCase()) + '</div>';
+                }
+                html += '</div>';
+                
+                // Right side - Info
+                html += '<div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">';
+                
+                // Name and username
+                html += '<div>';
+                html += '<div style="font-weight: bold; font-size: 16px; color: #202124; margin-bottom: 2px; line-height: 1.2;">' + name + '</div>';
+                if (username) {
+                    html += '<div style="font-size: 12px; color: #5f6368; margin-bottom: 6px; line-height: 1.2;">' + username + '</div>';
+                }
+                html += '</div>';
+                
+                // Stats row
+                html += '<div style="display: flex; justify-content: space-between; margin: 6px 0; padding: 6px 0; border-top: 1px solid #e8eaed; border-bottom: 1px solid #e8eaed;">';
+                html += '<div style="text-align: center; flex: 1;"><div style="font-weight: bold; font-size: 14px; color: #617337; line-height: 1.2;">' + totalHikes + '</div><div style="font-size: 9px; color: #5f6368; margin-top: 2px; line-height: 1.2;">Hikes</div></div>';
+                html += '<div style="text-align: center; flex: 1;"><div style="font-weight: bold; font-size: 14px; color: #617337; line-height: 1.2;">' + totalDistance.toFixed(1) + '</div><div style="font-size: 9px; color: #5f6368; margin-top: 2px; line-height: 1.2;">km</div></div>';
+                html += '<div style="text-align: center; flex: 1;"><div style="font-weight: bold; font-size: 14px; color: #617337; line-height: 1.2;">' + achievements.length + '</div><div style="font-size: 9px; color: #5f6368; margin-top: 2px; line-height: 1.2;">Badges</div></div>';
+                html += '</div>';
+                
+                // Bottom row - Level only
+                html += '<div style="margin-top: 2px;">';
+                html += '<div style="font-size: 11px; color: #5f6368; line-height: 1.2;">Level: <span style="font-weight: bold; color: #617337; text-transform: capitalize;">' + hikingLevel + '</span></div>';
+                html += '</div>';
+                
+                html += '</div>'; // Close right side
+                html += '</div>'; // Close main container
+            } else {
+                // Fallback to location info if no profile
+                html = 'Your Location<br>Lat: ' + (window.markerInstance ? window.markerInstance.getLatLng().lat.toFixed(6) : '') + '<br>Lng: ' + (window.markerInstance ? window.markerInstance.getLatLng().lng.toFixed(6) : '');
+            }
+            
+            const popup = window.markerInstance.getPopup();
+            if (popup) {
+                popup.setContent(html);
+                // Remove default Leaflet popup styling to make ID card fill entire popup
+                popup.options.className = 'custom-profile-popup';
+            } else {
+                window.markerInstance.bindPopup(html, {
+                    className: 'custom-profile-popup',
+                    closeOnClick: false,
+                    autoClose: false
+                });
             }
         };
     </script>
@@ -413,6 +532,20 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
     }
   }, [searchedLocation, setSearchedLocation, clearSearchedLocation]);
 
+  // Update user profile popup when profile changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+    
+    const script = `
+      (function(){
+        if (window.updateUserProfilePopup) {
+          window.updateUserProfilePopup(${JSON.stringify(userProfile || {})});
+        }
+      })();
+    `;
+    (mapRef.current as any)?.injectJavaScript(script);
+  }, [userProfile]);
+
   return (
     <View style={styles.container}>
       <WebView
@@ -425,6 +558,18 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
         onLoadEnd={() => {
+          // Initialize profile popup on load
+          if (userProfile && mapRef.current) {
+            const script = `
+              (function(){
+                if (window.updateUserProfilePopup) {
+                  window.updateUserProfilePopup(${JSON.stringify(userProfile)});
+                }
+              })();
+            `;
+            (mapRef.current as any)?.injectJavaScript(script);
+          }
+          
           // Update location if it changed after initial render
           // The map already starts at the correct location from staticHTML
           if (location) {
