@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Linking, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { EmbeddedMap, EmbeddedMapRef } from '@/components/maps/EmbeddedMap';
@@ -8,6 +8,7 @@ import { MapControls } from '@/components/maps/MapControls';
 import { LocationData } from '@/src/lib/locationService';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
+import { LocationBottomSheet } from '@/components/maps/LocationBottomSheet';
 
 /**
  * Live Map Screen
@@ -21,6 +22,7 @@ export default function MapsScreen() {
   const [mapLocation, setMapLocation] = useState<LocationData | null>(null);
   const [searchedLocation, setSearchedLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showLocationSheet, setShowLocationSheet] = useState(false);
 
   // Get current user
   const { user } = useAuth();
@@ -95,8 +97,49 @@ export default function MapsScreen() {
   const handleAddressClear = useCallback(() => {
     // Clear searched location pin
     setSearchedLocation(null);
+    // Close bottom sheet if open
+    setShowLocationSheet(false);
     // Don't reset isManualLocation - user might want to keep viewing a different area
   }, []);
+
+  // Handle searched location marker click
+  const handleSearchedLocationClick = useCallback(
+    (location: { latitude: number; longitude: number; address?: string }) => {
+      setShowLocationSheet(true);
+    },
+    []
+  );
+
+  // Handle opening location in maps app
+  const handleOpenInMaps = useCallback(async () => {
+    if (!searchedLocation) return;
+
+    const { latitude, longitude, address } = searchedLocation;
+    const label = address ? encodeURIComponent(address) : 'Location';
+
+    let url = '';
+    if (Platform.OS === 'ios') {
+      // Apple Maps
+      url = `maps://maps.apple.com/?q=${label}&ll=${latitude},${longitude}`;
+    } else {
+      // Android - Google Maps
+      url = `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback to web-based Google Maps
+        const webUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        await Linking.openURL(webUrl);
+      }
+      setShowLocationSheet(false);
+    } catch (error: any) {
+      Alert.alert('Error', 'Could not open maps app: ' + (error?.message || String(error)));
+    }
+  }, [searchedLocation]);
 
   return (
     <View style={styles.container}>
@@ -114,6 +157,7 @@ export default function MapsScreen() {
           achievements: userProfile.achievements,
           hikingLevel: userProfile.hikingLevel,
         } : null}
+        onSearchedLocationClick={handleSearchedLocationClick}
         defaultLatitude={37.3496}
         defaultLongitude={-121.9390}
       />
@@ -136,6 +180,16 @@ export default function MapsScreen() {
           <View style={styles.trackingDot} />
           <Text style={styles.trackingText}>Location sharing on</Text>
         </View>
+      )}
+
+      {/* Location bottom sheet */}
+      {searchedLocation && (
+        <LocationBottomSheet
+          visible={showLocationSheet}
+          location={searchedLocation}
+          onClose={() => setShowLocationSheet(false)}
+          onOpenInMaps={handleOpenInMaps}
+        />
       )}
     </View>
   );

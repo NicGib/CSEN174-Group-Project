@@ -21,6 +21,7 @@ interface EmbeddedMapProps {
   defaultLatitude?: number;
   defaultLongitude?: number;
   onLocationUpdate?: (location: LocationData) => void;
+  onSearchedLocationClick?: (location: { latitude: number; longitude: number; address?: string }) => void;
 }
 
 export interface EmbeddedMapRef {
@@ -36,7 +37,7 @@ export interface EmbeddedMapRef {
  * Handles map rendering and location updates
  */
 export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
-  ({ location, searchedLocation, userProfile, defaultLatitude = 37.3496, defaultLongitude = -121.9390, onLocationUpdate }, ref) => {
+  ({ location, searchedLocation, userProfile, defaultLatitude = 37.3496, defaultLongitude = -121.9390, onLocationUpdate, onSearchedLocationClick }, ref) => {
     const mapRef = React.useRef<any>(null);
 
   // Generate HTML with initial coordinates from React
@@ -321,9 +322,26 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
                 zIndexOffset: 500 // Below user location marker but above circle
             }).addTo(window.mapInstance);
             
-            // Bind popup with address
+            // Store location data for click handler
+            window.searchedMarkerLocation = { lat: lat, lng: lng, address: address || null };
+            
+            // Bind popup with address (minimal, just for visual feedback)
             const popupText = address || 'Searched Location<br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6);
             window.searchedMarkerInstance.bindPopup(popupText);
+            
+            // Handle marker click - communicate to React Native
+            window.searchedMarkerInstance.off('click'); // Remove any existing handlers
+            window.searchedMarkerInstance.on('click', function(e) {
+                // Stop event propagation to prevent map click from interfering
+                L.DomEvent.stopPropagation(e);
+                // Notify React Native about the click
+                if (window.ReactNativeWebView && window.searchedMarkerLocation) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'searchedLocationClick',
+                        location: window.searchedMarkerLocation
+                    }));
+                }
+            });
             
             // Center map on searched location (but don't change zoom if user has zoomed)
             window.mapInstance.setView([lat, lng], window.mapInstance.getZoom());
@@ -546,6 +564,22 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
     (mapRef.current as any)?.injectJavaScript(script);
   }, [userProfile]);
 
+  // Handle messages from WebView
+  const handleWebViewMessage = useCallback((event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'searchedLocationClick' && data.location && onSearchedLocationClick) {
+        onSearchedLocationClick({
+          latitude: data.location.lat,
+          longitude: data.location.lng,
+          address: data.location.address,
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing WebView message:', error);
+    }
+  }, [onSearchedLocationClick]);
+
   return (
     <View style={styles.container}>
       <WebView
@@ -557,6 +591,7 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
         domStorageEnabled={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
+        onMessage={handleWebViewMessage}
         onLoadEnd={() => {
           // Initialize profile popup on load
           if (userProfile && mapRef.current) {

@@ -94,12 +94,14 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
         tension: 50,
         friction: 7,
       }).start(() => {
-        clearAddress();
-        Keyboard.dismiss();
-        // Only clear searched location if explicitly closing without selection
-        if (shouldClear && onClear) {
-          onClear();
+        // Only clear address if we're explicitly closing without selection
+        if (shouldClear) {
+          clearAddress();
+          if (onClear) {
+            onClear();
+          }
         }
+        Keyboard.dismiss();
       });
     }
   };
@@ -107,6 +109,7 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
   const handleGeocodePress = async () => {
     const location = await handleGeocode();
     if (location) {
+      // Keep the address in the search bar (already set via addressInput)
       onLocationSelect({
         latitude: location.latitude,
         longitude: location.longitude,
@@ -120,6 +123,8 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
   const handleSuggestionSelect = async (suggestion: AddressSuggestion) => {
     const location = await handleSelectSuggestion(suggestion);
     if (location) {
+      // Keep the address in the search bar
+      setAddressInput(suggestion.displayName);
       onLocationSelect({
         latitude: location.latitude,
         longitude: location.longitude,
@@ -140,7 +145,9 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
           activeOpacity={0.8}
         >
           <MaterialIcons name="search" size={20} color="#5f6368" />
-          <Text style={styles.googleSearchBarText}>Search</Text>
+          <Text style={styles.googleSearchBarText} numberOfLines={1}>
+            {addressInput || 'Search'}
+          </Text>
         </TouchableOpacity>
       )}
 
