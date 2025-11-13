@@ -5,6 +5,7 @@ export default function MapsLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" options={{ title: "Maps" }} />
+      <Stack.Screen name="download" options={{ title: "Download Maps" }} />
     </Stack>
   );
 }
