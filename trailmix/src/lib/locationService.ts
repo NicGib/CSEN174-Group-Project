@@ -254,6 +254,40 @@ class LocationService {
       return null;
     }
   }
+
+  /**
+   * Get address autocomplete suggestions using Nominatim (OpenStreetMap)
+   */
+  async getAddressSuggestions(query: string, limit: number = 5): Promise<Array<{ displayName: string; latitude: number; longitude: number }>> {
+    if (!query || query.length < 3) {
+      return [];
+    }
+
+    try {
+      const encodedQuery = encodeURIComponent(query);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&limit=${limit}&addressdetails=1`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'TrailMixApp/1.0', // Required by Nominatim
+        },
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = await response.json();
+      return data.map((item: any) => ({
+        displayName: item.display_name,
+        latitude: parseFloat(item.lat),
+        longitude: parseFloat(item.lon),
+      }));
+    } catch (error) {
+      console.error('Error getting address suggestions:', error);
+      return [];
+    }
+  }
 }
 
 // Export singleton instance
