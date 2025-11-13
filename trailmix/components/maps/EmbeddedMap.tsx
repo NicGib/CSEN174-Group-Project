@@ -5,13 +5,16 @@ import { LocationData } from '@/src/lib/locationService';
 
 interface EmbeddedMapProps {
   location: LocationData | null;
+  searchedLocation?: { latitude: number; longitude: number; address?: string } | null;
   defaultLatitude?: number;
   defaultLongitude?: number;
   onLocationUpdate?: (location: LocationData) => void;
 }
 
 export interface EmbeddedMapRef {
-  updateLocation: (lat: number, lng: number) => void;
+  updateLocation: (lat: number, lng: number, shouldCenter?: boolean) => void;
+  setSearchedLocation: (lat: number, lng: number, address?: string) => void;
+  clearSearchedLocation: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
 }
@@ -21,7 +24,7 @@ export interface EmbeddedMapRef {
  * Handles map rendering and location updates
  */
 export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
-  ({ location, defaultLatitude = 37.3496, defaultLongitude = -121.9390, onLocationUpdate }, ref) => {
+  ({ location, searchedLocation, defaultLatitude = 37.3496, defaultLongitude = -121.9390, onLocationUpdate }, ref) => {
     const mapRef = React.useRef<any>(null);
 
   // Generate HTML with initial coordinates from React
@@ -89,20 +92,69 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
                 opacity: 0;
             }
         }
+        
+        /* === Searched location pin (red) === */
+        .searched-marker {
+            position: relative;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+        
+        .pin-wrapper {
+            position: relative;
+            width: 28px;
+            height: 36px;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Pin body (rounded top, pointed bottom) */
+        .pin {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #ea4335;              /* Google red */
+            border-radius: 9px 9px 9px 0;      /* pill with one "corner" */
+            transform: rotate(-45deg);
+            top: 0px;
+            left: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        
+        /* White "hole" in the center */
+        .pin-inner {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ffffff;
+            border-radius: 50%;
+            top: 5px;
+            left: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Google Maps-style location dot with pulsing animation
-        // Wrapper creates proper stacking context for Leaflet
+        // Google Maps-style location dot with pulsing animation (for user location)
         const customIcon = L.divIcon({
             className: 'custom-marker',
             html: '<div class="marker-wrapper"><div class="pulse"></div><div class="dot"></div></div>',
             iconSize: [16, 16],
             iconAnchor: [8, 8], // Center of 16x16 container
             popupAnchor: [0, -8]
+        });
+        
+        // Red pin icon for searched locations (flat, Google-style)
+        const searchedLocationIcon = L.divIcon({
+            className: 'searched-marker',
+            html: '<div class="pin-wrapper"><div class="pin"></div><div class="pin-inner"></div></div>',
+            iconSize: [28, 36],
+            iconAnchor: [14, 36], // horizontally centered (14 = 28/2), tip at bottom (36 = full height)
+            popupAnchor: [0, -36] // popup above the pin
         });
         
         // One-time setup - initialize map only once with initial coordinates
@@ -153,20 +205,23 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
             
             // Bind popup once
             window.markerInstance.bindPopup('');
+            
+            // Initialize searched location marker (starts as null)
+            window.searchedMarkerInstance = null;
         }
         
         // Process any pending updates that arrived before updateLocation was defined
         if (window.__pendingUpdates && window.__pendingUpdates.length) {
             const queue = window.__pendingUpdates.splice(0);
-            queue.forEach(([lat, lng, accuracy]) => {
+            queue.forEach(([lat, lng, accuracy, shouldCenter]) => {
                 if (window.updateLocation) {
-                    window.updateLocation(lat, lng, accuracy);
+                    window.updateLocation(lat, lng, accuracy, shouldCenter || false);
                 }
             });
         }
         
         // Called from React Native to update position and accuracy
-        window.updateLocation = function(newLat, newLng, accuracyMeters) {
+        window.updateLocation = function(newLat, newLng, accuracyMeters, shouldCenter) {
             if (!window.mapInstance || !window.markerInstance) return;
             
             // Update marker position - this is the exact coordinate
@@ -198,8 +253,42 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
                 window.markerInstance.bindPopup(html);
             }
             
-            // Keep current zoom; just recenter
-            window.mapInstance.setView([newLat, newLng], window.mapInstance.getZoom());
+            // Only recenter if explicitly requested (e.g., from "My Location" button)
+            // Don't auto-center when there's a searched location active
+            if (shouldCenter && (!window.searchedMarkerInstance)) {
+                window.mapInstance.setView([newLat, newLng], window.mapInstance.getZoom());
+            }
+        };
+        
+        // Set searched location marker (red pin)
+        window.setSearchedLocation = function(lat, lng, address) {
+            if (!window.mapInstance) return;
+            
+            // Remove existing searched marker if it exists
+            if (window.searchedMarkerInstance) {
+                window.mapInstance.removeLayer(window.searchedMarkerInstance);
+            }
+            
+            // Create new marker for searched location
+            window.searchedMarkerInstance = L.marker([lat, lng], {
+                icon: searchedLocationIcon,
+                zIndexOffset: 500 // Below user location marker but above circle
+            }).addTo(window.mapInstance);
+            
+            // Bind popup with address
+            const popupText = address || 'Searched Location<br>Lat: ' + lat.toFixed(6) + '<br>Lng: ' + lng.toFixed(6);
+            window.searchedMarkerInstance.bindPopup(popupText);
+            
+            // Center map on searched location (but don't change zoom if user has zoomed)
+            window.mapInstance.setView([lat, lng], window.mapInstance.getZoom());
+        };
+        
+        // Clear searched location marker
+        window.clearSearchedLocation = function() {
+            if (window.searchedMarkerInstance && window.mapInstance) {
+                window.mapInstance.removeLayer(window.searchedMarkerInstance);
+                window.searchedMarkerInstance = null;
+            }
         };
     </script>
 </body>
@@ -211,13 +300,13 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
   const lastSentRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
   const updateMapLocation = useCallback(
-    (lat: number, lng: number, locationData?: LocationData | null) => {
+    (lat: number, lng: number, shouldCenter: boolean = false, locationData?: LocationData | null) => {
       if (!mapRef.current) return;
 
       // Only update if location actually changed (helps with high-frequency trackers)
       const last = lastSentRef.current;
-      if (last && Math.abs(last.lat - lat) < 1e-7 && Math.abs(last.lng - lng) < 1e-7) {
-        return;
+      if (last && Math.abs(last.lat - lat) < 1e-7 && Math.abs(last.lng - lng) < 1e-7 && !shouldCenter) {
+        return; // Skip duplicate updates (unless we need to center)
       }
 
       lastSentRef.current = { lat, lng };
@@ -229,10 +318,10 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
       const updateScript = `
         (function(){
           if (window.updateLocation) {
-            window.updateLocation(${lat}, ${lng}, ${accuracy || 'null'});
+            window.updateLocation(${lat}, ${lng}, ${accuracy || 'null'}, ${shouldCenter});
           } else {
             window.__pendingUpdates = window.__pendingUpdates || [];
-            window.__pendingUpdates.push([${lat}, ${lng}, ${accuracy || 'null'}]);
+            window.__pendingUpdates.push([${lat}, ${lng}, ${accuracy || 'null'}, ${shouldCenter}]);
           }
         })();
       `;
@@ -255,8 +344,36 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
     }
   }, []);
 
+  const setSearchedLocation = useCallback((lat: number, lng: number, address?: string) => {
+    if (!mapRef.current) return;
+    const script = `
+      (function(){
+        if (window.setSearchedLocation) {
+          window.setSearchedLocation(${lat}, ${lng}, ${address ? `'${address.replace(/'/g, "\\'")}'` : 'null'});
+        }
+      })();
+    `;
+    (mapRef.current as any)?.injectJavaScript(script);
+  }, []);
+
+  const clearSearchedLocation = useCallback(() => {
+    if (!mapRef.current) return;
+    const script = `
+      (function(){
+        if (window.clearSearchedLocation) {
+          window.clearSearchedLocation();
+        }
+      })();
+    `;
+    (mapRef.current as any)?.injectJavaScript(script);
+  }, []);
+
   useImperativeHandle(ref, () => ({
-    updateLocation: updateMapLocation,
+    updateLocation: (lat: number, lng: number, shouldCenter?: boolean) => {
+      updateMapLocation(lat, lng, shouldCenter || false);
+    },
+    setSearchedLocation,
+    clearSearchedLocation,
     zoomIn,
     zoomOut,
   }));
@@ -271,14 +388,30 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
   );
 
   // Update map when location changes (debounced by updateMapLocation)
+  // Don't auto-center unless there's no searched location
   useEffect(() => {
     if (location) {
-      updateMapLocation(location.latitude, location.longitude, location);
+      // Only center if there's no searched location active
+      const shouldCenter = !searchedLocation;
+      updateMapLocation(location.latitude, location.longitude, shouldCenter, location);
       if (onLocationUpdate) {
         onLocationUpdate(location);
       }
     }
-  }, [location, updateMapLocation, onLocationUpdate]);
+  }, [location, searchedLocation, updateMapLocation, onLocationUpdate]);
+
+  // Update searched location marker
+  useEffect(() => {
+    if (searchedLocation) {
+      setSearchedLocation(
+        searchedLocation.latitude,
+        searchedLocation.longitude,
+        searchedLocation.address
+      );
+    } else {
+      clearSearchedLocation();
+    }
+  }, [searchedLocation, setSearchedLocation, clearSearchedLocation]);
 
   return (
     <View style={styles.container}>
@@ -303,7 +436,8 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
             
             // Only update if coordinates differ (avoid unnecessary updates)
             if (Math.abs(currentLat - initialLat) > 1e-6 || Math.abs(currentLng - initialLng) > 1e-6) {
-              updateMapLocation(currentLat, currentLng, location);
+              const shouldCenter = !searchedLocation;
+              updateMapLocation(currentLat, currentLng, shouldCenter, location);
             }
           }
         }}

@@ -8,6 +8,13 @@ export interface AddressSuggestion {
   longitude: number;
 }
 
+interface UseAddressSearchOptions {
+  debounceMs?: number;
+  minInputLength?: number;
+  maxResults?: number;
+  userLocation?: { latitude: number; longitude: number } | null;
+}
+
 interface UseAddressSearchReturn {
   addressInput: string;
   setAddressInput: (value: string) => void;
@@ -22,38 +29,73 @@ interface UseAddressSearchReturn {
 /**
  * Custom hook for address search and geocoding
  * Handles address input, suggestions, and geocoding logic
+ * Enhanced with better search accuracy and location bias
  */
 export function useAddressSearch(
-  debounceMs: number = 300,
-  minInputLength: number = 3
+  options: UseAddressSearchOptions = {}
 ): UseAddressSearchReturn {
+  const {
+    debounceMs = 300,
+    minInputLength = 2,
+    maxResults = 10,
+    userLocation = null,
+  } = options;
   const [addressInput, setAddressInput] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
-  // Debounced address suggestions
+  // Debounced address suggestions with retry logic and location bias
   useEffect(() => {
-    if (addressInput.length < minInputLength) {
+    if (addressInput.trim().length < minInputLength) {
       setSuggestions([]);
+      setIsLoading(false);
       return;
     }
 
+    let cancelled = false;
     const timeoutId = setTimeout(async () => {
       setIsLoading(true);
-      try {
-        const addressSuggestions = await locationService.getAddressSuggestions(addressInput, 5);
-        setSuggestions(addressSuggestions);
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
+      let retries = 2;
+      let lastError: any = null;
+      
+      while (retries >= 0 && !cancelled) {
+        try {
+          // Pass user location for location bias if available
+          const addressSuggestions = await locationService.getAddressSuggestions(
+            addressInput,
+            maxResults,
+            userLocation ? { userLocation } : undefined
+          );
+          
+          if (!cancelled) {
+            setSuggestions(addressSuggestions || []);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          lastError = error;
+          console.error(`Error fetching suggestions (${2 - retries + 1}/3):`, error);
+          if (retries > 0) {
+            // Wait a bit before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 200 * (3 - retries)));
+          }
+          retries--;
+        }
+      }
+      
+      if (!cancelled) {
+        console.error('Failed to fetch suggestions after retries:', lastError);
         setSuggestions([]);
-      } finally {
         setIsLoading(false);
       }
     }, debounceMs);
 
-    return () => clearTimeout(timeoutId);
-  }, [addressInput, debounceMs, minInputLength]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [addressInput, debounceMs, minInputLength, maxResults, userLocation]);
 
   const handleGeocode = useCallback(async (): Promise<LocationData | null> => {
     if (!addressInput.trim()) {

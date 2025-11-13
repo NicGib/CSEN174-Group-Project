@@ -17,6 +17,7 @@ export default function MapsScreen() {
   const mapRef = useRef<EmbeddedMapRef>(null);
   const [isManualLocation, setIsManualLocation] = useState(false);
   const [mapLocation, setMapLocation] = useState<LocationData | null>(null);
+  const [searchedLocation, setSearchedLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
 
   // Use location tracking hook
   const { isTracking, currentLocation, getCurrentLocation } = useLocationTracking({
@@ -38,39 +39,48 @@ export default function MapsScreen() {
 
   // Handle address search location selection
   const handleLocationSelect = useCallback(
-    (location: { latitude: number; longitude: number }) => {
-      setIsManualLocation(true);
-      setMapLocation({
+    (location: { latitude: number; longitude: number; address?: string }) => {
+      // Set searched location (red pin) - don't change user location tracking
+      setSearchedLocation({
         latitude: location.latitude,
         longitude: location.longitude,
-        timestamp: Date.now(),
+        address: location.address,
       });
+      // Don't update mapLocation - keep tracking user location
+      // Don't set isManualLocation - allow user location to continue updating
     },
     []
   );
 
   // Handle my location button press
   const handleMyLocationPress = useCallback(async () => {
+    // Clear searched location
+    setSearchedLocation(null);
+    // Reset to tracking user location
     setIsManualLocation(false);
     const location = await getCurrentLocation();
     if (location) {
       setMapLocation(location);
+      // Force center on user location when button is pressed
+      if (mapRef.current) {
+        mapRef.current.updateLocation(location.latitude, location.longitude, true);
+      }
     }
   }, [getCurrentLocation]);
 
   // Handle address search clear
   const handleAddressClear = useCallback(() => {
-    setIsManualLocation(false);
-    if (currentLocation) {
-      setMapLocation(currentLocation);
-    }
-  }, [currentLocation]);
+    // Clear searched location pin
+    setSearchedLocation(null);
+    // Don't reset isManualLocation - user might want to keep viewing a different area
+  }, []);
 
   return (
     <View style={styles.container}>
       <EmbeddedMap
         ref={mapRef}
         location={mapLocation}
+        searchedLocation={searchedLocation}
         defaultLatitude={37.3496}
         defaultLongitude={-121.9390}
       />
@@ -78,6 +88,7 @@ export default function MapsScreen() {
       <AddressSearchBar
         onLocationSelect={handleLocationSelect}
         onClear={handleAddressClear}
+        userLocation={currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
       />
 
       <MapControls

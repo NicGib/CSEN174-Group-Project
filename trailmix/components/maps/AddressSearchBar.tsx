@@ -15,15 +15,16 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAddressSearch, AddressSuggestion } from '@/hooks/useAddressSearch';
 
 interface AddressSearchBarProps {
-  onLocationSelect: (location: { latitude: number; longitude: number }) => void;
+  onLocationSelect: (location: { latitude: number; longitude: number; address?: string }) => void;
   onClear?: () => void;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
 /**
  * Address search bar component with autocomplete suggestions
  * Handles address input, suggestions display, and location selection
  */
-export function AddressSearchBar({ onLocationSelect, onClear }: AddressSearchBarProps) {
+export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: AddressSearchBarProps) {
   const [showAddressBar, setShowAddressBar] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [slideUpAnim] = useState(new Animated.Value(0));
@@ -37,7 +38,12 @@ export function AddressSearchBar({ onLocationSelect, onClear }: AddressSearchBar
     handleGeocode,
     handleSelectSuggestion,
     clearAddress,
-  } = useAddressSearch();
+  } = useAddressSearch({
+    debounceMs: 300,
+    minInputLength: 2,
+    maxResults: 10,
+    userLocation: userLocation || null,
+  });
 
   // Listen to keyboard events
   useEffect(() => {
@@ -79,7 +85,7 @@ export function AddressSearchBar({ onLocationSelect, onClear }: AddressSearchBar
     }
   }, [showAddressBar, suggestions.length, isLoading, slideUpAnim]);
 
-  const toggleAddressBar = (show: boolean) => {
+  const toggleAddressBar = (show: boolean, shouldClear: boolean = true) => {
     setShowAddressBar(show);
     if (!show) {
       Animated.spring(slideUpAnim, {
@@ -90,7 +96,8 @@ export function AddressSearchBar({ onLocationSelect, onClear }: AddressSearchBar
       }).start(() => {
         clearAddress();
         Keyboard.dismiss();
-        if (onClear) {
+        // Only clear searched location if explicitly closing without selection
+        if (shouldClear && onClear) {
           onClear();
         }
       });
@@ -100,16 +107,26 @@ export function AddressSearchBar({ onLocationSelect, onClear }: AddressSearchBar
   const handleGeocodePress = async () => {
     const location = await handleGeocode();
     if (location) {
-      onLocationSelect(location);
-      toggleAddressBar(false);
+      onLocationSelect({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: addressInput.trim(),
+      });
+      // Don't clear searched location when closing after selection
+      toggleAddressBar(false, false);
     }
   };
 
   const handleSuggestionSelect = async (suggestion: AddressSuggestion) => {
     const location = await handleSelectSuggestion(suggestion);
     if (location) {
-      onLocationSelect(location);
-      toggleAddressBar(false);
+      onLocationSelect({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: suggestion.displayName,
+      });
+      // Don't clear searched location when closing after selection
+      toggleAddressBar(false, false);
     }
   };
 
@@ -175,7 +192,7 @@ export function AddressSearchBar({ onLocationSelect, onClear }: AddressSearchBar
             nestedScrollEnabled={true}
           >
             {isLoading && (
-              <View style={styles.googleSuggestionItem}>
+              <View style={[styles.googleSuggestionItem, { justifyContent: 'center' }]}>
                 <ActivityIndicator size="small" color="#4285f4" />
                 <Text style={styles.googleSuggestionText}>Searching...</Text>
               </View>
@@ -296,12 +313,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f3f4',
+    minHeight: 56, // Ensure consistent height
   },
   googleSuggestionIcon: {
     marginRight: 16,
+    width: 24, // Fixed width for alignment
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   googleSuggestionTextContainer: {
     flex: 1,
+    justifyContent: 'center', // Vertically center text
   },
   googleSuggestionTitle: {
     fontSize: 15,
