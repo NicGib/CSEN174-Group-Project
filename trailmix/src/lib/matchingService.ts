@@ -45,14 +45,28 @@ export const getPotentialMatches = async (
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to get potential matches: ${response.statusText}`);
+      const errorText = response.statusText || `HTTP ${response.status}`;
+      let errorMessage = `Failed to get potential matches: ${errorText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage = `Failed to get potential matches: ${errorData.detail}`;
+        }
+      } catch {
+        // If JSON parsing fails, use the status text
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
     return data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting potential matches:', error);
-    throw error;
+    // Provide a more helpful error message
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Failed to get potential matches: Network error - check if the API server is running');
+    }
+    throw error instanceof Error ? error : new Error('Failed to get potential matches: Unknown error');
   }
 };
 

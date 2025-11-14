@@ -96,10 +96,13 @@ if "!TUNNEL_URL!"=="" (
 
 echo Tunnel URL: !TUNNEL_URL!
 echo !TUNNEL_URL!> "%TUNNEL_URL_FILE%"
+REM Also update trailmix/.tunnel-url for app.config.js
+echo !TUNNEL_URL!> "%FRONTEND_DIR%\.tunnel-url"
 
 REM Set environment variable for Expo
 set EXPO_PUBLIC_API_BASE_URL=!TUNNEL_URL!/api/v1
 echo API Base URL: !EXPO_PUBLIC_API_BASE_URL!
+echo Updated tunnel URL files: %TUNNEL_URL_FILE% and %FRONTEND_DIR%\.tunnel-url
 
 REM Start Expo (don't use --tunnel flag, we're using cloudflared)
 echo Starting Expo frontend...

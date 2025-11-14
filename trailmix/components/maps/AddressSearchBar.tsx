@@ -39,7 +39,7 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
     handleSelectSuggestion,
     clearAddress,
   } = useAddressSearch({
-    debounceMs: 300,
+    debounceMs: 150, // Faster response time
     minInputLength: 2,
     maxResults: 10,
     userLocation: userLocation || null,

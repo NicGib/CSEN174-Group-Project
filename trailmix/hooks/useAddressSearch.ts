@@ -35,7 +35,7 @@ export function useAddressSearch(
   options: UseAddressSearchOptions = {}
 ): UseAddressSearchReturn {
   const {
-    debounceMs = 300,
+    debounceMs = 150, // Reduced from 300ms for faster response
     minInputLength = 2,
     maxResults = 10,
     userLocation = null,
@@ -45,7 +45,7 @@ export function useAddressSearch(
   const [isLoading, setIsLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
-  // Debounced address suggestions with retry logic and location bias
+  // Debounced address suggestions with optimized retry logic and location bias
   useEffect(() => {
     if (addressInput.trim().length < minInputLength) {
       setSuggestions([]);
@@ -56,7 +56,7 @@ export function useAddressSearch(
     let cancelled = false;
     const timeoutId = setTimeout(async () => {
       setIsLoading(true);
-      let retries = 2;
+      let retries = 1; // Reduced from 2 to 1 for faster failure handling
       let lastError: any = null;
       
       while (retries >= 0 && !cancelled) {
@@ -75,10 +75,10 @@ export function useAddressSearch(
           }
         } catch (error) {
           lastError = error;
-          console.error(`Error fetching suggestions (${2 - retries + 1}/3):`, error);
+          console.error(`Error fetching suggestions (${1 - retries + 1}/2):`, error);
           if (retries > 0) {
-            // Wait a bit before retrying (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, 200 * (3 - retries)));
+            // Reduced wait time for faster retry
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
           retries--;
         }
