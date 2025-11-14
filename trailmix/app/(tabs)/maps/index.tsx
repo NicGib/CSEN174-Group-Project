@@ -1,255 +1,233 @@
-import React from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, RefreshControl, ActivityIndicator } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import { endpoints } from "../../../src/constants/api";
-import { saveMap, getSavedMaps, deleteSavedMap, SavedMap } from "../../../src/lib/mapStorage";
-import { locationService } from "../../../src/lib/locationService";
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Linking, Platform, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { EmbeddedMap, EmbeddedMapRef } from '@/components/maps/EmbeddedMap';
+import { AddressSearchBar } from '@/components/maps/AddressSearchBar';
+import { MapControls } from '@/components/maps/MapControls';
+import { LocationData, PlaceDetails } from '@/src/lib/locationService';
+import { useAuth } from '@/hooks/use-auth';
+import { getUserProfile, UserProfile } from '@/src/lib/userService';
+import { LocationBottomSheet } from '@/components/maps/LocationBottomSheet';
 
+/**
+ * Live Map Screen
+ * Displays an embedded map with location tracking, address search, and map controls
+ * Single Responsibility: Orchestrating the live map view
+ */
 export default function MapsScreen() {
-  const [lat, setLat] = React.useState("37.3496");
-  const [lng, setLng] = React.useState("-121.9390");
-  const [zoom, setZoom] = React.useState("12");
-  const [style, setStyle] = React.useState("terrain");
-  const [title, setTitle] = React.useState("Hiking Trail Map");
-  const [radius, setRadius] = React.useState("15");
-  const [savedMaps, setSavedMaps] = React.useState<SavedMap[]>([]);
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [showSaved, setShowSaved] = React.useState(false);
-  const [isGettingLocation, setIsGettingLocation] = React.useState(false);
-  const [isTracking, setIsTracking] = React.useState(false);
+  const router = useRouter();
+  const mapRef = useRef<EmbeddedMapRef>(null);
+  const [isManualLocation, setIsManualLocation] = useState(false);
+  const [mapLocation, setMapLocation] = useState<LocationData | null>(null);
+  const [searchedLocation, setSearchedLocation] = useState<{ latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails } | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showLocationSheet, setShowLocationSheet] = useState(false);
 
-  const buildUrl = React.useCallback(() => {
-    return `${endpoints.maps}?lat=${lat}&lng=${lng}&zoom=${zoom}&style=${encodeURIComponent(style)}&title=${encodeURIComponent(title)}&radius=${radius}`;
-  }, [lat, lng, zoom, style, title, radius]);
+  // Get current user
+  const { user } = useAuth();
 
-  const loadSavedMaps = React.useCallback(async () => {
-    try {
-      const maps = await getSavedMaps();
-      setSavedMaps(maps.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()));
-    } catch (error: any) {
-      console.error("Error loading saved maps:", error);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    loadSavedMaps();
-    // Start location tracking when component mounts
-    startLocationTracking();
-    
-    // Cleanup: stop tracking when component unmounts
-    return () => {
-      locationService.stopTracking();
+  // Load user profile
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.uid) {
+        try {
+          const profile = await getUserProfile(user.uid);
+          if (profile) {
+            setUserProfile(profile);
+          }
+        } catch (error) {
+          console.error('Error loading user profile:', error);
+        }
+      }
     };
-  }, [loadSavedMaps]);
+    loadProfile();
+  }, [user]);
 
-  const startLocationTracking = React.useCallback(async () => {
-    try {
-      const hasPermission = await locationService.checkPermissions();
-      if (!hasPermission) {
-        const granted = await locationService.requestPermissions();
-        if (!granted) {
-          console.warn('Location permission not granted');
-          return;
-        }
-      }
-      
-      const started = await locationService.startTracking({
-        accuracy: 4, // Location.Accuracy.Balanced (4)
-        timeInterval: 10000, // Update every 10 seconds
-        distanceInterval: 50, // Update every 50 meters
-      });
-      
-      if (started) {
-        setIsTracking(true);
-        // Get initial location
-        const location = await locationService.getCurrentLocation();
-        if (location) {
-          setLat(location.latitude.toString());
-          setLng(location.longitude.toString());
-        }
-      }
-    } catch (error) {
-      console.error('Error starting location tracking:', error);
+  // Use location tracking hook
+  const { isTracking, currentLocation, getCurrentLocation } = useLocationTracking({
+    autoStart: true,
+    trackingOptions: {
+      accuracy: 4, // Location.Accuracy.Balanced
+      timeInterval: 10000,
+      distanceInterval: 50,
+    },
+    updateInterval: 2000,
+  });
+
+  // Update map location when current location changes (only if not manual)
+  React.useEffect(() => {
+    if (currentLocation && !isManualLocation) {
+      setMapLocation(currentLocation);
     }
+  }, [currentLocation, isManualLocation]);
+
+  // Handle address search location selection
+  const handleLocationSelect = useCallback(
+    (location: { latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails }) => {
+      // Set searched location (red pin) - don't change user location tracking
+      setSearchedLocation({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.address,
+        placeDetails: location.placeDetails,
+      });
+      // Don't update mapLocation - keep tracking user location
+      // Don't set isManualLocation - allow user location to continue updating
+    },
+    []
+  );
+
+  // Handle my location button press
+  const handleMyLocationPress = useCallback(async () => {
+    // Don't clear searched location - keep the marker visible
+    // Reset to tracking user location
+    setIsManualLocation(false);
+    const location = await getCurrentLocation();
+    if (location) {
+      setMapLocation(location);
+      // Force center on user location when button is pressed
+      // The map will handle not centering if there's a searched location
+      if (mapRef.current) {
+        mapRef.current.updateLocation(location.latitude, location.longitude, true);
+      }
+    }
+  }, [getCurrentLocation]);
+
+  // Handle address search clear
+  const handleAddressClear = useCallback(() => {
+    // Clear searched location pin
+    setSearchedLocation(null);
+    // Close bottom sheet if open
+    setShowLocationSheet(false);
+    // Don't reset isManualLocation - user might want to keep viewing a different area
   }, []);
 
-  const getCurrentLocation = React.useCallback(async () => {
-    setIsGettingLocation(true);
+  // Handle searched location marker click
+  const handleSearchedLocationClick = useCallback(
+    (location: { latitude: number; longitude: number; address?: string }) => {
+      setShowLocationSheet(true);
+    },
+    []
+  );
+
+  // Handle opening location in maps app
+  const handleOpenInMaps = useCallback(async () => {
+    if (!searchedLocation) return;
+
+    const { latitude, longitude, address } = searchedLocation;
+    const label = address ? encodeURIComponent(address) : 'Location';
+
+    let url = '';
+    if (Platform.OS === 'ios') {
+      // Apple Maps
+      url = `maps://maps.apple.com/?q=${label}&ll=${latitude},${longitude}`;
+    } else {
+      // Android - Google Maps
+      url = `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`;
+    }
+
     try {
-      const location = await locationService.getCurrentLocation();
-      if (location) {
-        setLat(location.latitude.toString());
-        setLng(location.longitude.toString());
-        Alert.alert("Location Updated", `Lat: ${location.latitude.toFixed(6)}\nLng: ${location.longitude.toFixed(6)}`);
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
       } else {
-        Alert.alert("Error", "Could not get current location. Please check permissions.");
+        // Fallback to web-based Google Maps
+        const webUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        await Linking.openURL(webUrl);
       }
+      setShowLocationSheet(false);
     } catch (error: any) {
-      Alert.alert("Error", error?.message || "Failed to get location");
-    } finally {
-      setIsGettingLocation(false);
+      Alert.alert('Error', 'Could not open maps app: ' + (error?.message || String(error)));
     }
-  }, []);
-
-  const openMap = React.useCallback(async () => {
-    const url = buildUrl();
-    try {
-      // Save the map before opening
-      await saveMap({
-        title: title || "Hiking Trail Map",
-        url,
-        lat,
-        lng,
-        zoom,
-        style,
-        radius,
-      });
-      await loadSavedMaps(); // Refresh the list
-      await WebBrowser.openBrowserAsync(url);
-    } catch (e: any) {
-      Alert.alert("Could not open map", e?.message || String(e));
-    }
-  }, [buildUrl, title, lat, lng, zoom, style, radius, loadSavedMaps]);
-
-  const openSavedMap = React.useCallback(async (map: SavedMap) => {
-    try {
-      await WebBrowser.openBrowserAsync(map.url);
-    } catch (e: any) {
-      Alert.alert("Could not open map", e?.message || String(e));
-    }
-  }, []);
-
-  const handleDelete = React.useCallback(async (id: string, mapTitle: string) => {
-    Alert.alert(
-      "Delete Map",
-      `Are you sure you want to delete "${mapTitle}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteSavedMap(id);
-              await loadSavedMaps();
-            } catch (error: any) {
-              Alert.alert("Error", `Failed to delete map: ${error.message}`);
-            }
-          },
-        },
-      ]
-    );
-  }, [loadSavedMaps]);
-
-  const onRefresh = React.useCallback(async () => {
-    setRefreshing(true);
-    await loadSavedMaps();
-    setRefreshing(false);
-  }, [loadSavedMaps]);
+  }, [searchedLocation]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
-      <View style={{ 
-        flexDirection: "row", 
-        justifyContent: "space-between", 
-        alignItems: "center",
-        padding: 20,
-        paddingTop: 60,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-      }}>
-        <Text style={{ fontSize: 20, fontWeight: "bold", color: '#333' }}>Maps</Text>
-        <TouchableOpacity
-          onPress={() => setShowSaved(!showSaved)}
-          style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: showSaved ? "#2d6cdf" : "#ccc", borderRadius: 8 }}
-        >
-          <Text style={{ color: "white", fontWeight: "600" }}>{showSaved ? "New Map" : `Saved (${savedMaps.length})`}</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {!showSaved ? (
-        <View style={{ padding: 16, gap: 8 }}>
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-              <TextInput placeholder="Lat" value={lat} onChangeText={setLat} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
-              <TextInput placeholder="Lng" value={lng} onChangeText={setLng} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
-              <TouchableOpacity
-                onPress={getCurrentLocation}
-                disabled={isGettingLocation}
-                style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: isGettingLocation ? "#ccc" : "#4CAF50", borderRadius: 8, minWidth: 80, alignItems: "center" }}
-              >
-                {isGettingLocation ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>📍 Current</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-            {isTracking && (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#4CAF50" }} />
-                <Text style={{ fontSize: 12, color: "#4CAF50" }}>Location tracking active</Text>
-              </View>
-            )}
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <TextInput placeholder="Zoom" value={zoom} onChangeText={setZoom} keyboardType="number-pad" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
-              <TextInput placeholder="Radius km" value={radius} onChangeText={setRadius} keyboardType="numeric" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
-            </View>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <TextInput placeholder="Style (terrain|satellite|streets)" value={style} onChangeText={setStyle} style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
-              <TextInput placeholder="Title" value={title} onChangeText={setTitle} style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8 }} />
-            </View>
-            <TouchableOpacity onPress={openMap} style={{ alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#2d6cdf", borderRadius: 8 }}>
-              <Text style={{ color: "white", fontWeight: "600" }}>Open & Save Map</Text>
-            </TouchableOpacity>
+    <View style={styles.container}>
+      <EmbeddedMap
+        ref={mapRef}
+        location={mapLocation}
+        searchedLocation={searchedLocation}
+        userProfile={userProfile ? {
+          uid: userProfile.uid,
+          name: userProfile.name,
+          username: userProfile.username,
+          profilePicture: userProfile.profilePicture,
+          totalHikes: userProfile.totalHikes,
+          totalDistance: userProfile.totalDistance,
+          achievements: userProfile.achievements,
+          hikingLevel: userProfile.hikingLevel,
+        } : null}
+        onSearchedLocationClick={handleSearchedLocationClick}
+        defaultLatitude={37.3496}
+        defaultLongitude={-121.9390}
+      />
+
+      <AddressSearchBar
+        onLocationSelect={handleLocationSelect}
+        onClear={handleAddressClear}
+        userLocation={currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
+      />
+
+      <MapControls
+        mapRef={mapRef}
+        onMyLocationPress={handleMyLocationPress}
+        onDownloadPress={() => router.push('/(tabs)/maps/download')}
+      />
+
+      {/* Location tracking indicator */}
+      {isTracking && (
+        <View style={styles.trackingIndicator}>
+          <View style={styles.trackingDot} />
+          <Text style={styles.trackingText}>Location sharing on</Text>
         </View>
-      ) : null}
-      
-      {showSaved ? (
-        <View style={{ flex: 1 }}>
-          {savedMaps.length === 0 ? (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
-              <Text style={{ textAlign: "center", color: "#555" }}>
-                No saved maps yet. Create a map and it will be saved automatically.
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={savedMaps}
-              keyExtractor={(item) => item.id}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-              contentContainerStyle={{ padding: 12 }}
-              renderItem={({ item }) => (
-                <View style={{ padding: 12, borderWidth: 1, borderColor: "#ddd", borderRadius: 10, marginBottom: 10, backgroundColor: "#fff" }}>
-                  <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 4 }}>{item.title}</Text>
-                  <Text style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>
-                    {item.lat}, {item.lng} • Zoom: {item.zoom} • Style: {item.style} • Radius: {item.radius}km
-                  </Text>
-                  <Text style={{ fontSize: 11, color: "#999", marginBottom: 8 }}>
-                    Saved: {new Date(item.savedAt).toLocaleDateString()} {new Date(item.savedAt).toLocaleTimeString()}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => openSavedMap(item)}
-                      style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#2d6cdf", borderRadius: 8 }}
-                    >
-                      <Text style={{ color: "white", fontWeight: "600", textAlign: "center" }}>Open</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDelete(item.id, item.title)}
-                      style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#b00020", borderRadius: 8 }}
-                    >
-                      <Text style={{ color: "white", fontWeight: "600", textAlign: "center" }}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            />
-          )}
-        </View>
-      ) : null}
+      )}
+
+      {/* Location bottom sheet */}
+      {searchedLocation && (
+        <LocationBottomSheet
+          visible={showLocationSheet}
+          location={searchedLocation}
+          onClose={() => setShowLocationSheet(false)}
+          onOpenInMaps={handleOpenInMaps}
+        />
+      )}
     </View>
   );
 }
 
-
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  trackingIndicator: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 997,
+  },
+  trackingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#34a853',
+    marginRight: 8,
+  },
+  trackingText: {
+    fontSize: 13,
+    color: '#5f6368',
+    fontWeight: '400',
+  },
+});

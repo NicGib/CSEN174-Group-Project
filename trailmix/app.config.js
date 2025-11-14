@@ -101,14 +101,20 @@ function writePersistedApiUrl(url) {
 }
 
 let tunnelUrl = null;
+let tunnelUrlSource = null;
 for (const tunnelUrlPath of tunnelUrlPaths) {
   if (fs.existsSync(tunnelUrlPath)) {
     try {
-      tunnelUrl = fs.readFileSync(tunnelUrlPath, 'utf8').trim();
-      //console.log(`Found tunnel URL: ${tunnelUrl}`);
-      break;
+      const url = fs.readFileSync(tunnelUrlPath, 'utf8').trim();
+      if (url) {
+        tunnelUrl = url;
+        tunnelUrlSource = tunnelUrlPath;
+        console.log(`Found tunnel URL from: ${tunnelUrlPath}`);
+        console.log(`  URL: ${tunnelUrl}`);
+        break;
+      }
     } catch (err) {
-      console.warn(`Could not read tunnel URL file: ${err.message}`);
+      console.warn(`Could not read tunnel URL file ${tunnelUrlPath}: ${err.message}`);
     }
   }
 }
@@ -120,6 +126,7 @@ if (tunnelUrl) {
   // Always use tunnel URL if available (cloudflared)
   apiBaseUrl = `${tunnelUrl}/api/v1`;
   console.log(`Using cloudflared tunnel API URL: ${apiBaseUrl}`);
+  console.log(`  Source: ${tunnelUrlSource}`);
   // Persist the tunnel URL for future use
   writePersistedApiUrl(apiBaseUrl);
 } else if (apiBaseUrl) {
@@ -132,6 +139,7 @@ if (tunnelUrl) {
   if (persistedUrl) {
     apiBaseUrl = persistedUrl;
     console.log(`Using persisted API URL: ${apiBaseUrl}`);
+    console.warn(`  WARNING: Using cached API URL. If tunnel URL changed, delete secrets/api-url.txt and restart.`);
   } else {
     apiBaseUrl = "http://localhost:8000/api/v1";
     console.warn(`Using default localhost API URL: ${apiBaseUrl}`);
@@ -246,7 +254,13 @@ module.exports = {
     },
     extra: {
       firebase: firebaseConfig,
-      apiBaseUrl: apiBaseUrl
+      apiBaseUrl: apiBaseUrl,
+      // Geocoding provider configuration
+      // Options: 'nominatim' (free, default), 'geoapify', 'placekit'
+      geocodingProvider: process.env.EXPO_PUBLIC_GEOCODING_PROVIDER || 'nominatim',
+      geoapifyApiKey: process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY || undefined,
+      placekitApiKey: process.env.EXPO_PUBLIC_PLACEKIT_API_KEY || undefined,
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || undefined,
     }
   }
 };

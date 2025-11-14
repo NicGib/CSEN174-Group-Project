@@ -107,8 +107,10 @@ export class MessagingWebSocket {
 
   connect(): void {
     try {
+      // Get WebSocket URL dynamically to ensure we use the latest API base URL
       const wsUrl = `${getWebSocketUrl()}/messaging/ws/${this.userUid}`;
       console.log('[MessagingWebSocket] Connecting to:', wsUrl);
+      console.log('[MessagingWebSocket] API_BASE_URL:', API_BASE_URL);
       
       this.ws = new WebSocket(wsUrl);
 
@@ -138,6 +140,8 @@ export class MessagingWebSocket {
 
       this.ws.onerror = (error) => {
         console.error('[MessagingWebSocket] Error:', error);
+        console.error('[MessagingWebSocket] WebSocket state:', this.ws?.readyState);
+        console.error('[MessagingWebSocket] Attempted URL:', wsUrl);
       };
 
       this.ws.onclose = () => {
