@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,55 @@ import {
   StyleSheet,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAddressSearch, AddressSuggestion } from '@/hooks/useAddressSearch';
+import { locationService, PlaceDetails } from '@/src/lib/locationService';
 
 interface AddressSearchBarProps {
-  onLocationSelect: (location: { latitude: number; longitude: number; address?: string }) => void;
+  onLocationSelect: (location: { latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails }) => void;
   onClear?: () => void;
   userLocation?: { latitude: number; longitude: number } | null;
 }
+
+// Helper function to get icon based on result type
+const getIconForType = (type?: string): keyof typeof MaterialIcons.glyphMap => {
+  if (!type) return 'place';
+  const typeLower = type.toLowerCase();
+  if (typeLower.includes('city') || typeLower.includes('town') || typeLower.includes('municipality')) {
+    return 'location-city';
+  }
+  if (typeLower.includes('amenity') || typeLower.includes('poi') || typeLower.includes('restaurant') || typeLower.includes('store')) {
+    return 'storefront';
+  }
+  if (typeLower.includes('street') || typeLower.includes('road')) {
+    return 'signpost';
+  }
+  if (typeLower.includes('building') || typeLower.includes('house')) {
+    return 'home';
+  }
+  return 'place';
+};
+
+// Helper function to highlight matched text
+const highlightText = (text: string, query: string): React.ReactNode => {
+  if (!query || !text) return text;
+  const queryLower = query.toLowerCase();
+  const textLower = text.toLowerCase();
+  const index = textLower.indexOf(queryLower);
+  
+  if (index === -1) return text;
+  
+  return (
+    <>
+      {text.substring(0, index)}
+      <Text style={{ fontWeight: '600' }}>{text.substring(index, index + query.length)}</Text>
+      {text.substring(index + query.length)}
+    </>
+  );
+};
+
+const RECENT_SEARCHES_KEY = '@trailmix_recent_searches';
+const MAX_RECENT_SEARCHES = 5;
 
 /**
  * Address search bar component with autocomplete suggestions
@@ -28,6 +70,7 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
   const [showAddressBar, setShowAddressBar] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [slideUpAnim] = useState(new Animated.Value(0));
+  const [recentSearches, setRecentSearches] = useState<AddressSuggestion[]>([]);
 
   const {
     addressInput,
@@ -38,12 +81,49 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
     handleGeocode,
     handleSelectSuggestion,
     clearAddress,
+    cancelPendingSearch,
   } = useAddressSearch({
-    debounceMs: 150, // Faster response time
+    debounceMs: 600, // Wait for a break in typing (600ms pause)
     minInputLength: 2,
     maxResults: 10,
     userLocation: userLocation || null,
   });
+
+  // Load recent searches on mount
+  useEffect(() => {
+    const loadRecentSearches = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+        if (stored) {
+          setRecentSearches(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.warn('Failed to load recent searches:', error);
+      }
+    };
+    loadRecentSearches();
+  }, []);
+
+  // Save to recent searches when a suggestion is selected
+  const saveToRecentSearches = async (suggestion: AddressSuggestion) => {
+    try {
+      const updated = [suggestion, ...recentSearches.filter(s => 
+        s.latitude !== suggestion.latitude || s.longitude !== suggestion.longitude
+      )].slice(0, MAX_RECENT_SEARCHES);
+      setRecentSearches(updated);
+      await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.warn('Failed to save recent search:', error);
+    }
+  };
+
+  // Get suggestions to display (recent searches if no input, otherwise suggestions)
+  const displaySuggestions = useMemo(() => {
+    if (addressInput.trim().length < 2 && recentSearches.length > 0 && showAddressBar) {
+      return recentSearches;
+    }
+    return suggestions;
+  }, [addressInput, suggestions, recentSearches, showAddressBar]);
 
   // Listen to keyboard events
   useEffect(() => {
@@ -121,16 +201,58 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
   };
 
   const handleSuggestionSelect = async (suggestion: AddressSuggestion) => {
-    const location = await handleSelectSuggestion(suggestion);
-    if (location) {
+    // Cancel any pending searches immediately to prevent further API calls
+    cancelPendingSearch();
+    
+    const result = await handleSelectSuggestion(suggestion);
+    if (result) {
+      // Log which API provider was used
+      const provider = suggestion.provider || 'unknown';
+      console.log(`Address selected from ${provider.toUpperCase()}: ${suggestion.displayName}`);
+      if (result.placeDetails) {
+        const detailsProvider = result.placeDetails.provider || 'unknown';
+        console.log(`Place details from ${detailsProvider.toUpperCase()}: ${result.placeDetails.images?.length || 0} images, ${result.placeDetails.categories?.length || 0} categories`);
+      }
+      
+      // Save to recent searches
+      await saveToRecentSearches(suggestion);
+      
       // Keep the address in the search bar
       setAddressInput(suggestion.displayName);
       onLocationSelect({
-        latitude: location.latitude,
-        longitude: location.longitude,
+        latitude: result.location.latitude,
+        longitude: result.location.longitude,
         address: suggestion.displayName,
+        placeDetails: result.placeDetails || undefined,
       });
       // Don't clear searched location when closing after selection
+      toggleAddressBar(false, false);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    if (!userLocation) return;
+    
+    try {
+      // Get address for current location
+      const address = await locationService.reverseGeocodeForAddress(
+        userLocation.latitude,
+        userLocation.longitude
+      );
+      
+      onLocationSelect({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        address: address || 'Current Location',
+      });
+      toggleAddressBar(false, false);
+    } catch (error) {
+      console.error('Error getting current location address:', error);
+      onLocationSelect({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        address: 'Current Location',
+      });
       toggleAddressBar(false, false);
     }
   };
@@ -198,34 +320,70 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
             contentContainerStyle={styles.googleSuggestionsContent}
             nestedScrollEnabled={true}
           >
+            {/* Use Current Location option */}
+            {userLocation && addressInput.trim().length < 2 && (
+              <TouchableOpacity
+                style={styles.googleSuggestionItem}
+                onPress={handleUseCurrentLocation}
+                activeOpacity={0.7}
+              >
+                <View style={styles.googleSuggestionIcon}>
+                  <MaterialIcons name="my-location" size={24} color="#4285f4" />
+                </View>
+                <View style={styles.googleSuggestionTextContainer}>
+                  <Text style={styles.googleSuggestionTitle}>Use current location</Text>
+                  <Text style={styles.googleSuggestionSubtitle}>Tap to use your current location</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            
+            {/* Recent searches header */}
+            {addressInput.trim().length < 2 && recentSearches.length > 0 && (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeaderText}>Recent searches</Text>
+              </View>
+            )}
+            
             {isLoading && (
               <View style={[styles.googleSuggestionItem, { justifyContent: 'center' }]}>
                 <ActivityIndicator size="small" color="#4285f4" />
                 <Text style={styles.googleSuggestionText}>Searching...</Text>
               </View>
             )}
-            {suggestions.map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.googleSuggestionItem}
-                onPress={() => handleSuggestionSelect(suggestion)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.googleSuggestionIcon}>
-                  <MaterialIcons name="place" size={24} color="#5f6368" />
-                </View>
-                <View style={styles.googleSuggestionTextContainer}>
-                  <Text style={styles.googleSuggestionTitle} numberOfLines={1}>
-                    {suggestion.displayName.split(',')[0]}
-                  </Text>
-                  {suggestion.displayName.includes(',') && (
-                    <Text style={styles.googleSuggestionSubtitle} numberOfLines={1}>
-                      {suggestion.displayName.split(',').slice(1).join(',').trim()}
+            {displaySuggestions.map((suggestion, index) => {
+              const mainText = suggestion.address_line1 || suggestion.displayName.split(',')[0];
+              const secondaryText = suggestion.address_line2 || 
+                                   (suggestion.displayName.includes(',') 
+                                     ? suggestion.displayName.split(',').slice(1).join(',').trim() 
+                                     : '');
+              
+              return (
+                <TouchableOpacity
+                  key={`${suggestion.latitude}-${suggestion.longitude}-${index}`}
+                  style={styles.googleSuggestionItem}
+                  onPress={() => handleSuggestionSelect(suggestion)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.googleSuggestionIcon}>
+                    <MaterialIcons 
+                      name={getIconForType(suggestion.result_type)} 
+                      size={24} 
+                      color="#5f6368" 
+                    />
+                  </View>
+                  <View style={styles.googleSuggestionTextContainer}>
+                    <Text style={styles.googleSuggestionTitle} numberOfLines={1}>
+                      {highlightText(mainText, addressInput.trim())}
                     </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
+                    {secondaryText && (
+                      <Text style={styles.googleSuggestionSubtitle} numberOfLines={1}>
+                        {secondaryText}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </Animated.View>
       )}
@@ -346,6 +504,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#5f6368',
     marginLeft: 12,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8eaed',
+  },
+  sectionHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5f6368',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
 

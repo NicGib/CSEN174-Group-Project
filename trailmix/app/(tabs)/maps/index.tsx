@@ -5,7 +5,7 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { EmbeddedMap, EmbeddedMapRef } from '@/components/maps/EmbeddedMap';
 import { AddressSearchBar } from '@/components/maps/AddressSearchBar';
 import { MapControls } from '@/components/maps/MapControls';
-import { LocationData } from '@/src/lib/locationService';
+import { LocationData, PlaceDetails } from '@/src/lib/locationService';
 import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { LocationBottomSheet } from '@/components/maps/LocationBottomSheet';
@@ -20,7 +20,7 @@ export default function MapsScreen() {
   const mapRef = useRef<EmbeddedMapRef>(null);
   const [isManualLocation, setIsManualLocation] = useState(false);
   const [mapLocation, setMapLocation] = useState<LocationData | null>(null);
-  const [searchedLocation, setSearchedLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [searchedLocation, setSearchedLocation] = useState<{ latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails } | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showLocationSheet, setShowLocationSheet] = useState(false);
 
@@ -64,12 +64,13 @@ export default function MapsScreen() {
 
   // Handle address search location selection
   const handleLocationSelect = useCallback(
-    (location: { latitude: number; longitude: number; address?: string }) => {
+    (location: { latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails }) => {
       // Set searched location (red pin) - don't change user location tracking
       setSearchedLocation({
         latitude: location.latitude,
         longitude: location.longitude,
         address: location.address,
+        placeDetails: location.placeDetails,
       });
       // Don't update mapLocation - keep tracking user location
       // Don't set isManualLocation - allow user location to continue updating
@@ -79,14 +80,14 @@ export default function MapsScreen() {
 
   // Handle my location button press
   const handleMyLocationPress = useCallback(async () => {
-    // Clear searched location
-    setSearchedLocation(null);
+    // Don't clear searched location - keep the marker visible
     // Reset to tracking user location
     setIsManualLocation(false);
     const location = await getCurrentLocation();
     if (location) {
       setMapLocation(location);
       // Force center on user location when button is pressed
+      // The map will handle not centering if there's a searched location
       if (mapRef.current) {
         mapRef.current.updateLocation(location.latitude, location.longitude, true);
       }

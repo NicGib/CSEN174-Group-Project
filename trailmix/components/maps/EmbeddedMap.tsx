@@ -301,8 +301,8 @@ export const EmbeddedMap = forwardRef<EmbeddedMapRef, EmbeddedMapProps>(
             }
             
             // Only recenter if explicitly requested (e.g., from "My Location" button)
-            // Don't auto-center when there's a searched location active
-            if (shouldCenter && (!window.searchedMarkerInstance)) {
+            // Allow recentering even when there's a searched location (marker stays visible)
+            if (shouldCenter) {
                 window.mapInstance.setView([newLat, newLng], window.mapInstance.getZoom());
             }
         };

@@ -260,6 +260,7 @@ module.exports = {
       geocodingProvider: process.env.EXPO_PUBLIC_GEOCODING_PROVIDER || 'nominatim',
       geoapifyApiKey: process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY || undefined,
       placekitApiKey: process.env.EXPO_PUBLIC_PLACEKIT_API_KEY || undefined,
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || undefined,
     }
   }
 };

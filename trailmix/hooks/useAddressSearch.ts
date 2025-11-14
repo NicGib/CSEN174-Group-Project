@@ -1,12 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Keyboard } from 'react-native';
-import { locationService, LocationData } from '@/src/lib/locationService';
+import { locationService, LocationData, EnhancedAddressSuggestion, PlaceDetails } from '@/src/lib/locationService';
 
-export interface AddressSuggestion {
-  displayName: string;
-  latitude: number;
-  longitude: number;
-}
+// Re-export for convenience
+export type AddressSuggestion = EnhancedAddressSuggestion;
 
 interface UseAddressSearchOptions {
   debounceMs?: number;
@@ -22,8 +19,9 @@ interface UseAddressSearchReturn {
   isLoading: boolean;
   isGeocoding: boolean;
   handleGeocode: () => Promise<LocationData | null>;
-  handleSelectSuggestion: (suggestion: AddressSuggestion) => Promise<LocationData | null>;
+  handleSelectSuggestion: (suggestion: AddressSuggestion) => Promise<{ location: LocationData; placeDetails?: PlaceDetails | null } | null>;
   clearAddress: () => void;
+  cancelPendingSearch: () => void;
 }
 
 /**
@@ -35,7 +33,7 @@ export function useAddressSearch(
   options: UseAddressSearchOptions = {}
 ): UseAddressSearchReturn {
   const {
-    debounceMs = 150, // Reduced from 300ms for faster response
+    debounceMs = 600, // Wait for a break in typing (600ms pause)
     minInputLength = 2,
     maxResults = 10,
     userLocation = null,
@@ -44,36 +42,76 @@ export function useAddressSearch(
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const cancelRef = useRef<{ cancelled: boolean; timeoutId?: ReturnType<typeof setTimeout> }>({ cancelled: false });
+  const isSelectingRef = useRef(false); // Flag to prevent searching when selecting a suggestion
+
+  // Function to cancel pending searches
+  const cancelPendingSearch = useCallback(() => {
+    if (cancelRef.current.timeoutId) {
+      clearTimeout(cancelRef.current.timeoutId);
+      cancelRef.current.timeoutId = undefined;
+    }
+    cancelRef.current.cancelled = true;
+    setIsLoading(false);
+  }, []);
 
   // Debounced address suggestions with optimized retry logic and location bias
   useEffect(() => {
-    if (addressInput.trim().length < minInputLength) {
+    // Skip searching if we're in the middle of selecting a suggestion
+    if (isSelectingRef.current) {
+      return;
+    }
+
+    // Cancel any pending search
+    cancelRef.current.cancelled = true;
+    if (cancelRef.current.timeoutId) {
+      clearTimeout(cancelRef.current.timeoutId);
+    }
+
+    // Normalize the input: trim and collapse multiple spaces
+    const normalizedInput = addressInput.trim().replace(/\s+/g, ' ');
+    
+    if (normalizedInput.length < minInputLength) {
       setSuggestions([]);
       setIsLoading(false);
       return;
     }
 
-    let cancelled = false;
+    // Reset cancellation flag for new search
+    cancelRef.current.cancelled = false;
+    
     const timeoutId = setTimeout(async () => {
+      if (cancelRef.current.cancelled) return;
+      
+      // Re-normalize in case input changed during debounce
+      const finalInput = addressInput.trim().replace(/\s+/g, ' ');
+      if (finalInput.length < minInputLength) {
+        setSuggestions([]);
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(true);
       let retries = 1; // Reduced from 2 to 1 for faster failure handling
       let lastError: any = null;
       
-      while (retries >= 0 && !cancelled) {
+      while (retries >= 0 && !cancelRef.current.cancelled) {
         try {
-          // Pass user location for location bias if available
+          // Pass normalized input and user location for location bias if available
           const addressSuggestions = await locationService.getAddressSuggestions(
-            addressInput,
+            finalInput,
             maxResults,
             userLocation ? { userLocation } : undefined
           );
           
-          if (!cancelled) {
+          if (!cancelRef.current.cancelled) {
             setSuggestions(addressSuggestions || []);
             setIsLoading(false);
             return;
           }
         } catch (error) {
+          if (cancelRef.current.cancelled) return;
+          
           lastError = error;
           console.error(`Error fetching suggestions (${1 - retries + 1}/2):`, error);
           if (retries > 0) {
@@ -84,15 +122,17 @@ export function useAddressSearch(
         }
       }
       
-      if (!cancelled) {
+      if (!cancelRef.current.cancelled) {
         console.error('Failed to fetch suggestions after retries:', lastError);
         setSuggestions([]);
         setIsLoading(false);
       }
     }, debounceMs);
 
+    cancelRef.current.timeoutId = timeoutId;
+
     return () => {
-      cancelled = true;
+      cancelRef.current.cancelled = true;
       clearTimeout(timeoutId);
     };
   }, [addressInput, debounceMs, minInputLength, maxResults, userLocation]);
@@ -123,18 +163,71 @@ export function useAddressSearch(
   }, [addressInput]);
 
   const handleSelectSuggestion = useCallback(
-    async (suggestion: AddressSuggestion): Promise<LocationData | null> => {
-      setAddressInput(suggestion.displayName);
+    async (suggestion: AddressSuggestion): Promise<{ location: LocationData; placeDetails?: PlaceDetails | null } | null> => {
+      // Set flag to prevent new searches while we're setting the address
+      isSelectingRef.current = true;
+      
+      // Cancel any pending searches immediately
+      cancelPendingSearch();
+      
+      // Get canonical formatted address via reverse geocoding
+      let displayAddress = suggestion.displayName;
+      try {
+        const canonicalAddress = await locationService.reverseGeocodeForAddress(
+          suggestion.latitude,
+          suggestion.longitude
+        );
+        if (canonicalAddress) {
+          displayAddress = canonicalAddress;
+        }
+      } catch (error) {
+        console.warn('Reverse geocoding failed, using suggestion address:', error);
+      }
+
+      // Fetch place details if this is a Google or Geoapify result
+      let placeDetails: PlaceDetails | null = null;
+      // Fetch place details for both Google and Geoapify (they both support place_id)
+      if (suggestion.provider === 'google' || suggestion.provider === 'geoapify') {
+        try {
+          placeDetails = await locationService.getPlaceDetails(
+            suggestion.latitude,
+            suggestion.longitude,
+            suggestion.place_id, // Pass place_id
+            suggestion.provider as 'google' | 'geoapify' // Pass provider so it knows which API to use
+          );
+          if (placeDetails) {
+            // Use place details address if available and better
+            if (placeDetails.formatted && placeDetails.formatted !== displayAddress) {
+              displayAddress = placeDetails.formatted;
+            } else if (placeDetails.address_line1 && placeDetails.address_line2) {
+              displayAddress = `${placeDetails.address_line1}, ${placeDetails.address_line2}`;
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to fetch place details:', error);
+        }
+      }
+
+      setAddressInput(displayAddress);
       setSuggestions([]);
+      setIsLoading(false); // Ensure loading is stopped
       Keyboard.dismiss();
 
+      // Reset flag after a short delay to allow the input to be set
+      setTimeout(() => {
+        isSelectingRef.current = false;
+      }, 100);
+
       return {
-        latitude: suggestion.latitude,
-        longitude: suggestion.longitude,
-        timestamp: Date.now(),
+        location: {
+          latitude: suggestion.latitude,
+          longitude: suggestion.longitude,
+          timestamp: Date.now(),
+        },
+        placeDetails,
       };
     },
-    []
+    [cancelPendingSearch]
   );
 
   const clearAddress = useCallback(() => {
@@ -151,6 +244,7 @@ export function useAddressSearch(
     handleGeocode,
     handleSelectSuggestion,
     clearAddress,
+    cancelPendingSearch,
   };
 }
 

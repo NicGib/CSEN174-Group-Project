@@ -23,11 +23,14 @@ const CACHE_KEYS = {
 
 const USER_STATUSES: UserStatus[] = ['user', 'wayfarer', 'admin'];
 
+const GOOGLE_MAPS_ENABLED_KEY = '@trailmix_google_maps_enabled';
+
 export default function DebugScreen() {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [currentStatus, setCurrentStatus] = useState<UserStatus>('user');
   const [newStatus, setNewStatus] = useState<UserStatus>('user');
+  const [googleMapsEnabled, setGoogleMapsEnabled] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -51,7 +54,28 @@ export default function DebugScreen() {
 
   useEffect(() => {
     loadProfile();
+    loadGoogleMapsSetting();
   }, [loadProfile]);
+
+  const loadGoogleMapsSetting = async () => {
+    try {
+      const enabled = await AsyncStorage.getItem(GOOGLE_MAPS_ENABLED_KEY);
+      setGoogleMapsEnabled(enabled === 'true');
+    } catch (error) {
+      console.warn('Failed to load Google Maps setting:', error);
+    }
+  };
+
+  const toggleGoogleMaps = async () => {
+    try {
+      const newValue = !googleMapsEnabled;
+      await AsyncStorage.setItem(GOOGLE_MAPS_ENABLED_KEY, String(newValue));
+      setGoogleMapsEnabled(newValue);
+      Alert.alert('Success', `Google Maps ${newValue ? 'enabled' : 'disabled'}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to toggle Google Maps');
+    }
+  };
 
   const clearAllCache = async () => {
     try {
@@ -289,6 +313,34 @@ export default function DebugScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Feature Flags Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Feature Flags</Text>
+        
+        <View style={styles.toggleContainer}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Google Maps Place Details</Text>
+            <Text style={styles.toggleDescription}>
+              Enable Google Maps for place details and photos (100 requests/day limit)
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
+              googleMapsEnabled && styles.toggleButtonActive,
+            ]}
+            onPress={toggleGoogleMaps}
+          >
+            <Text style={[
+              styles.toggleButtonText,
+              googleMapsEnabled && styles.toggleButtonTextActive,
+            ]}>
+              {googleMapsEnabled ? 'ON' : 'OFF'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* User Info Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>User Info</Text>
@@ -437,6 +489,49 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
     fontFamily: 'monospace',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  toggleDescription: {
+    fontSize: 12,
+    color: '#666',
+  },
+  toggleButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#E0E0E0',
+    borderWidth: 2,
+    borderColor: '#BDBDBD',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  toggleButtonTextActive: {
+    color: '#fff',
   },
 });
 
