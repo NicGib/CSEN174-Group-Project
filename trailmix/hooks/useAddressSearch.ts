@@ -133,7 +133,12 @@ export function useAddressSearch(
 
     return () => {
       cancelRef.current.cancelled = true;
-      clearTimeout(timeoutId);
+      if (cancelRef.current.timeoutId) {
+        clearTimeout(cancelRef.current.timeoutId);
+        cancelRef.current.timeoutId = undefined;
+      }
+      // Reset loading state when effect is cleaned up (e.g., input changed or component unmounted)
+      setIsLoading(false);
     };
   }, [addressInput, debounceMs, minInputLength, maxResults, userLocation]);
 
@@ -167,8 +172,14 @@ export function useAddressSearch(
       // Set flag to prevent new searches while we're setting the address
       isSelectingRef.current = true;
       
-      // Cancel any pending searches immediately
+      // Cancel any pending searches immediately and reset loading state
       cancelPendingSearch();
+      setIsLoading(false);
+      setSuggestions([]);
+      
+      // Update address input immediately with the suggestion's display name
+      // This ensures the address bar updates right away
+      setAddressInput(suggestion.displayName);
       
       // Get canonical formatted address via reverse geocoding
       let displayAddress = suggestion.displayName;
@@ -208,9 +219,11 @@ export function useAddressSearch(
         }
       }
 
-      setAddressInput(displayAddress);
-      setSuggestions([]);
-      setIsLoading(false); // Ensure loading is stopped
+      // Update address input with the final canonical address if it changed
+      if (displayAddress !== suggestion.displayName) {
+        setAddressInput(displayAddress);
+      }
+      
       Keyboard.dismiss();
 
       // Reset flag after a short delay to allow the input to be set
