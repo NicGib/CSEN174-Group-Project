@@ -93,6 +93,7 @@ const getApiKey = (provider: GeocodingProvider): string | null => {
 class LocationService {
   private watchSubscription: Location.LocationSubscription | null = null;
   private isTracking: boolean = false;
+  private trackingRefCount: number = 0; // Track how many components are using tracking
   private currentLocation: LocationData | null = null;
   private locationHistory: LocationData[] = [];
   private maxHistorySize: number = 1000; // Keep last 1000 locations
@@ -197,10 +198,14 @@ class LocationService {
 
   /**
    * Start tracking location continuously
+   * Uses reference counting to support multiple components
    */
   async startTracking(options: LocationTrackingOptions = {}): Promise<boolean> {
+    // Increment reference count
+    this.trackingRefCount++;
+    
     if (this.isTracking) {
-      console.warn('Location tracking already started');
+      // Already tracking, just increment the ref count
       return true;
     }
 
@@ -249,14 +254,21 @@ class LocationService {
 
   /**
    * Stop tracking location
+   * Uses reference counting - only actually stops when ref count reaches 0
    */
   stopTracking(): void {
-    if (this.watchSubscription) {
-      this.watchSubscription.remove();
-      this.watchSubscription = null;
+    // Decrement reference count
+    this.trackingRefCount = Math.max(0, this.trackingRefCount - 1);
+    
+    // Only actually stop tracking if no components are using it
+    if (this.trackingRefCount === 0 && this.isTracking) {
+      if (this.watchSubscription) {
+        this.watchSubscription.remove();
+        this.watchSubscription = null;
+      }
+      this.isTracking = false;
+      console.log('Location tracking stopped');
     }
-    this.isTracking = false;
-    console.log('Location tracking stopped');
   }
 
   /**

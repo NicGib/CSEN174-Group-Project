@@ -20,6 +20,10 @@ interface AddressSearchBarProps {
   onLocationSelect: (location: { latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails }) => void;
   onClear?: () => void;
   userLocation?: { latitude: number; longitude: number } | null;
+  variant?: 'floating' | 'form'; // 'floating' for maps (absolute positioning), 'form' for modals/forms
+  placeholder?: string;
+  skipPlaceDetails?: boolean; // Skip fetching place details (faster, for forms)
+  initialAddress?: string; // Initial address value to display
 }
 
 // Helper function to get icon based on result type
@@ -66,11 +70,12 @@ const MAX_RECENT_SEARCHES = 5;
  * Address search bar component with autocomplete suggestions
  * Handles address input, suggestions display, and location selection
  */
-export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: AddressSearchBarProps) {
-  const [showAddressBar, setShowAddressBar] = useState(false);
+export function AddressSearchBar({ onLocationSelect, onClear, userLocation, variant = 'floating', placeholder = 'Search', skipPlaceDetails = false, initialAddress }: AddressSearchBarProps) {
+  const [showAddressBar, setShowAddressBar] = useState(false); // Start hidden, show when user interacts
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [slideUpAnim] = useState(new Animated.Value(0));
   const [recentSearches, setRecentSearches] = useState<AddressSuggestion[]>([]);
+  const isProgrammaticUpdateRef = React.useRef(false); // Track if address is being set programmatically
 
   const {
     addressInput,
@@ -87,7 +92,39 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
     minInputLength: 2,
     maxResults: 10,
     userLocation: userLocation || null,
+    shouldSearch: showAddressBar, // Only search when the search bar is open
   });
+
+  // Initialize address input with initialAddress on mount
+  useEffect(() => {
+    if (initialAddress) {
+      isProgrammaticUpdateRef.current = true;
+      setAddressInput(initialAddress);
+      // Reset flag after a short delay to allow the update to complete
+      setTimeout(() => {
+        isProgrammaticUpdateRef.current = false;
+      }, 100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Update address input if initialAddress is provided and addressInput is empty (e.g., after clear)
+  // Only update if the value actually changed to avoid unnecessary updates
+  const prevInitialAddressRef = React.useRef<string | undefined>(initialAddress);
+  useEffect(() => {
+    if (initialAddress && !addressInput && initialAddress !== prevInitialAddressRef.current) {
+      isProgrammaticUpdateRef.current = true;
+      setAddressInput(initialAddress);
+      prevInitialAddressRef.current = initialAddress;
+      // Reset flag after a short delay
+      setTimeout(() => {
+        isProgrammaticUpdateRef.current = false;
+      }, 100);
+    } else if (initialAddress !== prevInitialAddressRef.current) {
+      prevInitialAddressRef.current = initialAddress;
+    }
+  }, [initialAddress, addressInput, setAddressInput]);
+
 
   // Load recent searches on mount
   useEffect(() => {
@@ -166,6 +203,14 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
   }, [showAddressBar, suggestions.length, isLoading, slideUpAnim]);
 
   const toggleAddressBar = (show: boolean, shouldClear: boolean = true) => {
+    if (!show) {
+      // Cancel any pending searches when closing
+      cancelPendingSearch();
+      // Only clear address and suggestions if shouldClear is true
+      if (shouldClear) {
+        clearAddress();
+      }
+    }
     setShowAddressBar(show);
     if (!show) {
       Animated.spring(slideUpAnim, {
@@ -174,12 +219,9 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
         tension: 50,
         friction: 7,
       }).start(() => {
-        // Only clear address if we're explicitly closing without selection
-        if (shouldClear) {
-          clearAddress();
-          if (onClear) {
-            onClear();
-          }
+        // Call onClear callback if provided
+        if (shouldClear && onClear) {
+          onClear();
         }
         Keyboard.dismiss();
       });
@@ -204,6 +246,30 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
     // Cancel any pending searches immediately to prevent further API calls
     cancelPendingSearch();
     
+    // If skipPlaceDetails is true, just use the suggestion directly without fetching details
+    if (skipPlaceDetails) {
+      // Save to recent searches
+      await saveToRecentSearches(suggestion);
+      
+      // Use the display name as the address
+      const selectedAddress = suggestion.displayName;
+      
+      // Keep the address in the search bar - set it before calling onLocationSelect
+      setAddressInput(selectedAddress);
+      
+      onLocationSelect({
+        latitude: suggestion.latitude,
+        longitude: suggestion.longitude,
+        address: selectedAddress,
+        placeDetails: undefined, // Skip place details
+      });
+      
+      // Close the search bar without clearing the address
+      toggleAddressBar(false, false);
+      return;
+    }
+    
+    // Otherwise, fetch place details as usual
     const result = await handleSelectSuggestion(suggestion);
     if (result) {
       // Log which API provider was used
@@ -257,36 +323,38 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
     }
   };
 
+  const isFormMode = variant === 'form';
+
   return (
-    <>
+    <View style={isFormMode ? styles.formContainer : undefined}>
       {/* Collapsed search bar */}
       {!showAddressBar && (
         <TouchableOpacity
-          style={styles.googleSearchBar}
+          style={isFormMode ? styles.formSearchBarCollapsed : styles.googleSearchBar}
           onPress={() => toggleAddressBar(true)}
           activeOpacity={0.8}
         >
           <MaterialIcons name="search" size={20} color="#5f6368" />
-          <Text style={styles.googleSearchBarText} numberOfLines={1}>
-            {addressInput || 'Search'}
+          <Text style={isFormMode ? styles.formSearchBarText : styles.googleSearchBarText} numberOfLines={1}>
+            {addressInput || placeholder}
           </Text>
         </TouchableOpacity>
       )}
 
       {/* Expanded search bar */}
       {showAddressBar && (
-        <Animated.View style={styles.googleSearchBarExpanded}>
-          <View style={styles.googleSearchBarContent}>
+        <Animated.View style={isFormMode ? styles.formSearchBar : styles.googleSearchBarExpanded}>
+          <View style={isFormMode ? styles.formSearchBarContent : styles.googleSearchBarContent}>
             <MaterialIcons name="search" size={20} color="#5f6368" style={{ marginRight: 12 }} />
             <TextInput
-              style={styles.googleSearchInput}
-              placeholder="Search"
+              style={isFormMode ? styles.formSearchInput : styles.googleSearchInput}
+              placeholder={placeholder}
               placeholderTextColor="#9aa0a6"
               value={addressInput}
               onChangeText={setAddressInput}
               onSubmitEditing={handleGeocodePress}
               returnKeyType="search"
-              autoFocus={true}
+              autoFocus={showAddressBar}
             />
             {addressInput.length > 0 && (
               <TouchableOpacity onPress={clearAddress} style={styles.googleClearButton}>
@@ -303,12 +371,12 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
         </Animated.View>
       )}
 
-      {/* Suggestions list */}
-      {showAddressBar && (suggestions.length > 0 || isLoading) && (
+      {/* Suggestions list - only show when search bar is open */}
+      {showAddressBar && (displaySuggestions.length > 0 || isLoading || (isFormMode && addressInput.trim().length < 2 && recentSearches.length > 0)) && (
         <Animated.View
           style={[
-            styles.googleSuggestionsSheet,
-            {
+            isFormMode ? styles.formSuggestionsSheet : styles.googleSuggestionsSheet,
+            isFormMode ? {} : {
               top: Platform.OS === 'ios' ? 120 : 100,
               bottom: Math.max(keyboardHeight, 0),
             },
@@ -316,7 +384,7 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
         >
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            style={styles.googleSuggestionsScrollView}
+            style={isFormMode ? styles.formSuggestionsScrollView : styles.googleSuggestionsScrollView}
             contentContainerStyle={styles.googleSuggestionsContent}
             nestedScrollEnabled={true}
           >
@@ -387,7 +455,7 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation }: Ad
           </ScrollView>
         </Animated.View>
       )}
-    </>
+    </View>
   );
 }
 
@@ -468,6 +536,9 @@ const styles = StyleSheet.create({
   googleSuggestionsScrollView: {
     maxHeight: 400,
   },
+  formSuggestionsScrollView: {
+    maxHeight: 300,
+  },
   googleSuggestionsContent: {
     paddingVertical: 8,
   },
@@ -518,6 +589,69 @@ const styles = StyleSheet.create({
     color: '#5f6368',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  // Form mode styles
+  formContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  formSearchBarCollapsed: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  formSearchBarText: {
+    marginLeft: 12,
+    fontSize: 15,
+    color: '#5f6368',
+    flex: 1,
+  },
+  formSearchBar: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  formSearchBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  formSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#202124',
+    padding: 0,
+    margin: 0,
+  },
+  formSuggestionsSheet: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    maxHeight: 300,
+    zIndex: 1001,
   },
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { locationService, LocationData, LocationTrackingOptions } from '@/src/lib/locationService';
 
 interface UseLocationTrackingOptions {
@@ -58,7 +58,7 @@ export function useLocationTracking(
     } catch (error) {
       console.error('Error starting location tracking:', error);
     }
-  }, [trackingOptions]);
+  }, [trackingOptions.accuracy, trackingOptions.timeInterval, trackingOptions.distanceInterval]);
 
   const stopTracking = useCallback(() => {
     locationService.stopTracking();
@@ -73,17 +73,25 @@ export function useLocationTracking(
     return location;
   }, []);
 
+  // Track if this instance started tracking
+  const startedTrackingRef = useRef(false);
+
   // Auto-start tracking if requested
   useEffect(() => {
-    if (autoStart) {
+    if (autoStart && !startedTrackingRef.current) {
       startTracking();
+      startedTrackingRef.current = true;
     }
 
-    // Cleanup: stop tracking when component unmounts
+    // Cleanup: stop tracking when component unmounts only if this instance started it
     return () => {
-      locationService.stopTracking();
+      if (startedTrackingRef.current) {
+        locationService.stopTracking();
+        startedTrackingRef.current = false;
+      }
     };
-  }, [autoStart, startTracking]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]); // Only depend on autoStart, not startTracking
 
   // Poll for location updates when tracking
   useEffect(() => {

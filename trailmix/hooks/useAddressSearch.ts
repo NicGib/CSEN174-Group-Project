@@ -10,6 +10,7 @@ interface UseAddressSearchOptions {
   minInputLength?: number;
   maxResults?: number;
   userLocation?: { latitude: number; longitude: number } | null;
+  shouldSearch?: boolean; // Whether to trigger searches (e.g., when search bar is open)
 }
 
 interface UseAddressSearchReturn {
@@ -37,6 +38,7 @@ export function useAddressSearch(
     minInputLength = 2,
     maxResults = 10,
     userLocation = null,
+    shouldSearch = true, // Default to true for backward compatibility
   } = options;
   const [addressInput, setAddressInput] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -62,6 +64,19 @@ export function useAddressSearch(
       return;
     }
 
+    // Don't search if shouldSearch is false (e.g., search bar is closed)
+    if (!shouldSearch) {
+      // Cancel any pending search and clear suggestions
+      cancelRef.current.cancelled = true;
+      if (cancelRef.current.timeoutId) {
+        clearTimeout(cancelRef.current.timeoutId);
+        cancelRef.current.timeoutId = undefined;
+      }
+      setSuggestions([]);
+      setIsLoading(false);
+      return;
+    }
+
     // Cancel any pending search
     cancelRef.current.cancelled = true;
     if (cancelRef.current.timeoutId) {
@@ -71,6 +86,7 @@ export function useAddressSearch(
     // Normalize the input: trim and collapse multiple spaces
     const normalizedInput = addressInput.trim().replace(/\s+/g, ' ');
     
+    // Don't search if input is too short - clear suggestions instead
     if (normalizedInput.length < minInputLength) {
       setSuggestions([]);
       setIsLoading(false);
@@ -140,7 +156,7 @@ export function useAddressSearch(
       // Reset loading state when effect is cleaned up (e.g., input changed or component unmounted)
       setIsLoading(false);
     };
-  }, [addressInput, debounceMs, minInputLength, maxResults, userLocation]);
+  }, [addressInput, debounceMs, minInputLength, maxResults, userLocation, shouldSearch]);
 
   const handleGeocode = useCallback(async (): Promise<LocationData | null> => {
     if (!addressInput.trim()) {

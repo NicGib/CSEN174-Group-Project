@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { saveMap, getSavedMaps, deleteSavedMap, SavedMap } from '@/src/lib/mapStorage';
 import { buildMapUrl } from '@/src/utils/mapUtils';
+import { downloadAndSaveMap, getLocalFileUri } from '@/src/utils/mapFileStorage';
 
 interface MapBuilderFormState {
   lat: string;
@@ -69,10 +70,14 @@ export function useMapBuilder(): UseMapBuilderReturn {
   const openAndSaveMap = useCallback(async () => {
     const url = buildUrl();
     try {
-      // Save the map before opening
+      // Download and save the map locally
+      const filename = formState.title || 'Hiking Trail Map';
+      const localFilePath = await downloadAndSaveMap(url, filename);
+      
+      // Save the map metadata with local file path
       await saveMap({
-        title: formState.title || 'Hiking Trail Map',
-        url,
+        title: filename,
+        localFilePath,
         lat: formState.lat,
         lng: formState.lng,
         zoom: formState.zoom,
@@ -80,9 +85,18 @@ export function useMapBuilder(): UseMapBuilderReturn {
         radius: formState.radius,
       });
       await loadSavedMaps(); // Refresh the list
-      await WebBrowser.openBrowserAsync(url);
+      
+      // Open the local file using Linking (works offline)
+      const fileUri = getLocalFileUri(localFilePath);
+      const canOpen = await Linking.canOpenURL(fileUri);
+      if (canOpen) {
+        await Linking.openURL(fileUri);
+      } else {
+        // Fallback: try WebBrowser
+        await WebBrowser.openBrowserAsync(fileUri);
+      }
     } catch (e: any) {
-      Alert.alert('Could not open map', e?.message || String(e));
+      Alert.alert('Could not download or open map', e?.message || String(e));
     }
   }, [buildUrl, formState, loadSavedMaps]);
 

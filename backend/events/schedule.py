@@ -94,19 +94,46 @@ def create_hiking_event(title: str, location: str, event_date: str,
     try:
         if isinstance(event_date, str):
             if 'T' in event_date:
-                # ISO format with time
-                event_datetime = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+                # ISO format with time - handle both timezone-aware and naive formats
+                if event_date.endswith('Z'):
+                    # UTC timezone, convert to naive
+                    date_str = event_date.replace('Z', '+00:00')
+                    event_datetime = datetime.fromisoformat(date_str)
+                    # Convert to naive datetime (remove timezone)
+                    event_datetime = event_datetime.replace(tzinfo=None)
+                elif '+' in event_date or event_date.count('-') > 2:
+                    # Has timezone offset, parse and convert to naive
+                    event_datetime = datetime.fromisoformat(event_date)
+                    if event_datetime.tzinfo is not None:
+                        event_datetime = event_datetime.replace(tzinfo=None)
+                else:
+                    # Naive datetime format (YYYY-MM-DDTHH:mm:ss)
+                    try:
+                        event_datetime = datetime.fromisoformat(event_date)
+                        # Ensure it's naive
+                        if event_datetime.tzinfo is not None:
+                            event_datetime = event_datetime.replace(tzinfo=None)
+                    except ValueError:
+                        # Fallback to strptime
+                        event_datetime = datetime.strptime(event_date, "%Y-%m-%dT%H:%M:%S")
             else:
                 # Date only, assume 9:00 AM
                 event_datetime = datetime.strptime(event_date, "%Y-%m-%d")
                 event_datetime = event_datetime.replace(hour=9, minute=0, second=0)
         else:
             event_datetime = event_date
+            # Convert to naive if timezone-aware
+            if event_datetime.tzinfo is not None:
+                event_datetime = event_datetime.replace(tzinfo=None)
     except ValueError as e:
         raise ValueError(f"Invalid date format. Use YYYY-MM-DD or ISO format: {e}")
     
     # Check if event is in the future
-    if event_datetime <= datetime.now():
+    # Use UTC for comparison to avoid timezone issues
+    # The frontend sends UTC time, so we compare with UTC now
+    from datetime import timezone
+    utc_now = datetime.now(timezone.utc).replace(tzinfo=None)  # Convert to naive UTC
+    if event_datetime <= utc_now:
         raise ValueError("Event date must be in the future")
     
     # Create event object

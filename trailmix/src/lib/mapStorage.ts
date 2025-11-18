@@ -3,7 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export interface SavedMap {
   id: string;
   title: string;
-  url: string;
+  url?: string; // Optional for backward compatibility
+  localFilePath?: string; // Local file path for offline maps
   lat: string;
   lng: string;
   zoom: string;
@@ -39,6 +40,22 @@ export async function getSavedMaps(): Promise<SavedMap[]> {
 
 export async function deleteSavedMap(id: string): Promise<void> {
   const savedMaps = await getSavedMaps();
+  const mapToDelete = savedMaps.find((map) => map.id === id);
+  
+  // Delete local file if it exists
+  if (mapToDelete?.localFilePath) {
+    try {
+      const FileSystem = require('expo-file-system');
+      const fileInfo = await FileSystem.getInfoAsync(mapToDelete.localFilePath);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(mapToDelete.localFilePath, { idempotent: true });
+      }
+    } catch (error) {
+      console.error("Error deleting local map file:", error);
+      // Continue with deletion even if file deletion fails
+    }
+  }
+  
   const filtered = savedMaps.filter((map) => map.id !== id);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 }
