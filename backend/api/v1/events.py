@@ -6,6 +6,7 @@ from ...events.schedule import (
     create_hiking_event,
     add_attendee_to_event,
     remove_attendee_from_event,
+    delete_hiking_event,
     get_event_details,
     list_all_events,
     get_events_by_location,
@@ -50,6 +51,15 @@ def add_attendee(event_id: str, body: AttendeeAdd):
 def remove_attendee(event_id: str, user_uid: str):
     try:
         return remove_attendee_from_event(event_id, user_uid)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{event_id}")
+def delete_event(event_id: str, organizer_uid: str = Query(..., description="UID of the event organizer")):
+    try:
+        return delete_hiking_event(event_id, organizer_uid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:

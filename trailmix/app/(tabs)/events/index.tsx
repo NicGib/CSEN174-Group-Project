@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, FlatList, TouchableOpacity, TextInput, Modal, ActivityIndicator, RefreshControl, StyleSheet, ScrollView, Platform, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { listEvents, createEvent, joinEvent, leaveEvent, EventDetails } from "../../../src/api/events";
+import { listEvents, createEvent, joinEvent, leaveEvent, deleteEvent, EventDetails } from "../../../src/api/events";
 import { auth } from "../../../src/lib/firebase";
 import { AddressSearchBar } from "@/components/maps/AddressSearchBar";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
@@ -247,6 +247,36 @@ export default function EventsScreen() {
     }
   };
 
+
+  const onDeleteEvent = async (eventId: string) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("You must be signed in");
+      
+      Alert.alert(
+        "Delete Event",
+        "Are you sure you want to delete this event? This action cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await deleteEvent(eventId, user.uid);
+                await load();
+              } catch (e: any) {
+                setErr(e.message || "Failed to delete event");
+              }
+            },
+          },
+        ]
+      );
+    } catch (e: any) {
+      setErr(e.message || "Failed to delete event");
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
       <View style={{ 
@@ -294,33 +324,51 @@ export default function EventsScreen() {
           data={events}
           keyExtractor={(item) => item.event_id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => router.push(`/(tabs)/events/${item.event_id}`)}
-              style={{ padding: 12, borderWidth: 1, borderColor: "#ddd", borderRadius: 10, marginBottom: 10, backgroundColor: "#fff" }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "700" }}>{item.title}</Text>
-              <Text style={{ marginTop: 4 }}>{item.location} • {new Date(item.event_date).toLocaleString()}</Text>
-              <Text numberOfLines={3} style={{ marginTop: 4, color: "#555" }}>{item.description}</Text>
-              <Text style={{ marginTop: 4, color: "#333" }}>Difficulty: {item.difficulty_level} • {item.attendees?.length || 0}/{item.max_attendees} going</Text>
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-                {(() => {
-                  const uid = auth.currentUser?.uid || "";
-                  const isJoined = !!uid && Array.isArray(item.attendees) && item.attendees.includes(uid);
-                  if (isJoined) {
-                    return (
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          onLeave(item.event_id);
-                        }}
-                        style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#b00020", borderRadius: 8 }}
-                      >
-                        <Text style={{ color: "white", fontWeight: "600" }}>Leave</Text>
-                      </TouchableOpacity>
-                    );
-                  }
-                  return (
+          renderItem={({ item }) => {
+            const uid = auth.currentUser?.uid || "";
+            const isJoined = !!uid && Array.isArray(item.attendees) && item.attendees.includes(uid);
+            const isOrganizer = uid === item.organizer_uid;
+            
+            return (
+              <TouchableOpacity
+                onPress={() => router.push(`/(tabs)/events/${item.event_id}`)}
+                style={{ padding: 12, borderWidth: 1, borderColor: "#ddd", borderRadius: 10, marginBottom: 10, backgroundColor: "#fff" }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "700" }}>{item.title}</Text>
+                    <Text style={{ marginTop: 4 }}>{item.location} • {new Date(item.event_date).toLocaleString()}</Text>
+                    <Text numberOfLines={3} style={{ marginTop: 4, color: "#555" }}>{item.description}</Text>
+                    <Text style={{ marginTop: 4, color: "#333" }}>Difficulty: {item.difficulty_level} • {item.attendees?.length || 0}/{item.max_attendees} going</Text>
+                    {isOrganizer && (
+                      <Text style={{ marginTop: 4, color: "#2d6cdf", fontWeight: "600", fontSize: 12 }}>You are the organizer</Text>
+                    )}
+                  </View>
+                  {isOrganizer && (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        onDeleteEvent(item.event_id);
+                      }}
+                      style={{ padding: 8, marginLeft: 8 }}
+                    >
+                      <Text style={{ color: "#b00020", fontSize: 20 }}>🗑️</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+                  {isJoined ? (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        onLeave(item.event_id);
+                      }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#b00020", borderRadius: 8 }}
+                    >
+                      <Text style={{ color: "white", fontWeight: "600" }}>Leave</Text>
+                    </TouchableOpacity>
+                  ) : (
                     <TouchableOpacity
                       onPress={(e) => {
                         e.stopPropagation();
@@ -330,11 +378,11 @@ export default function EventsScreen() {
                     >
                       <Text style={{ color: "white", fontWeight: "600" }}>Join</Text>
                     </TouchableOpacity>
-                  );
-                })()}
-              </View>
-            </TouchableOpacity>
-          )}
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
       </View>

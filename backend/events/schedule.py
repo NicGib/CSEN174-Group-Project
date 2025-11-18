@@ -281,6 +281,52 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
         print(f"Failed to remove attendee: {e}")
         raise RuntimeError(f"Failed to remove attendee: {e}")
 
+def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
+    """
+    Deletes a hiking event. Only the organizer can delete their event.
+    
+    Args:
+        event_id: ID of the hiking event to delete
+        organizer_uid: UID of the user attempting to delete (must be the organizer)
+    
+    Returns:
+        Dict with success status
+    """
+    print(f"\nDeleting event {event_id} by organizer {organizer_uid}")
+    
+    try:
+        # Get event document
+        event_ref = db.collection("hiking_events").document(event_id)
+        event_doc = event_ref.get()
+        
+        if not event_doc.exists:
+            raise ValueError(f"Event {event_id} not found")
+        
+        event_data = event_doc.to_dict()
+        event_organizer = event_data.get("organizer_uid", "")
+        
+        # Check if user is the organizer
+        if event_organizer != organizer_uid:
+            raise ValueError("Only the event organizer can delete this event")
+        
+        # Delete the event document
+        event_ref.delete()
+        
+        print(f"Successfully deleted event {event_id}")
+        
+        return {
+            "success": True,
+            "event_id": event_id,
+            "message": "Event deleted successfully",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        print(f"Failed to delete event: {e}")
+        raise RuntimeError(f"Failed to delete event: {e}")
+
 def get_event_details(event_id: str) -> Optional[Dict]:
     """
     Retrieves detailed information about a hiking event.

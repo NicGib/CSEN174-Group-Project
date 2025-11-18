@@ -100,4 +100,38 @@ export async function leaveEvent(eventId: string, user_uid: string) {
   }
 }
 
+export async function removeAttendee(eventId: string, user_uid: string) {
+  try {
+    const res = await fetch(
+      `${endpoints.events}/${encodeURIComponent(eventId)}/attendees/${encodeURIComponent(user_uid)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to remove attendee (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json?.() ?? {};
+  } catch (error: any) {
+    if (error.message?.includes("Failed to remove")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
+}
+
+export async function deleteEvent(eventId: string, organizer_uid: string) {
+  try {
+    const res = await fetch(
+      `${endpoints.events}/${encodeURIComponent(eventId)}?organizer_uid=${encodeURIComponent(organizer_uid)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to delete event (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json?.() ?? {};
+  } catch (error: any) {
+    if (error.message?.includes("Failed to delete")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
+}
+
 

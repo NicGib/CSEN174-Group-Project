@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import { listEvents, EventDetails } from '@/src/api/events';
+import { listEvents, EventDetails, removeAttendee } from '@/src/api/events';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
+import { auth } from '@/src/lib/firebase';
 
 interface AttendeeProfile {
   uid: string;
@@ -25,6 +26,7 @@ export default function EventAttendeesScreen() {
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [attendees, setAttendees] = useState<AttendeeProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [removingAttendee, setRemovingAttendee] = useState<string | null>(null);
 
   const handleBack = () => {
     // Navigate back to previous screen
@@ -78,6 +80,34 @@ export default function EventAttendeesScreen() {
 
   const handleViewProfile = (uid: string) => {
     router.push(`/(tabs)/profile/${uid}`);
+  };
+
+  const handleRemoveAttendee = async (attendeeUid: string, attendeeName: string) => {
+    if (!event) return;
+    
+    Alert.alert(
+      "Remove Attendee",
+      `Are you sure you want to remove ${attendeeName} from this event?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setRemovingAttendee(attendeeUid);
+              await removeAttendee(event.event_id, attendeeUid);
+              // Reload the event and attendees
+              await loadEventAndAttendees();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to remove attendee');
+            } finally {
+              setRemovingAttendee(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -142,49 +172,93 @@ export default function EventAttendeesScreen() {
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => {
             const profile = item.profile;
+            const currentUserUid = auth.currentUser?.uid || "";
+            const isOrganizer = event && currentUserUid === event.organizer_uid;
+            const isCurrentUser = currentUserUid === item.uid;
+            const isRemoving = removingAttendee === item.uid;
+            
+            // Handle unknown users (profile not found)
             if (!profile) {
+              const displayName = 'Unknown User';
               return (
                 <View style={styles.attendeeCard}>
-                  <View style={styles.attendeeAvatar}>
-                    <Text style={styles.attendeeAvatarText}>?</Text>
-                  </View>
-                  <View style={styles.attendeeInfo}>
-                    <Text style={styles.attendeeName}>Unknown User</Text>
-                    <Text style={styles.attendeeUsername}>Loading...</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                    onPress={() => handleViewProfile(item.uid)}
+                  >
+                    <View style={styles.attendeeAvatar}>
+                      <Text style={styles.attendeeAvatarText}>?</Text>
+                    </View>
+                    <View style={styles.attendeeInfo}>
+                      <Text style={styles.attendeeName}>{displayName}</Text>
+                      <Text style={styles.attendeeUsername}>ID: {item.uid.substring(0, 8)}...</Text>
+                    </View>
+                    <Text style={styles.arrowText}>→</Text>
+                  </TouchableOpacity>
+                  {isOrganizer && !isCurrentUser && (
+                    <TouchableOpacity
+                      onPress={() => handleRemoveAttendee(item.uid, displayName)}
+                      disabled={isRemoving}
+                      style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
+                    >
+                      {isRemoving ? (
+                        <ActivityIndicator size="small" color="#b00020" />
+                      ) : (
+                        <Text style={styles.removeButtonText}>Remove</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             }
 
+            const displayName = profile.name || profile.username || 'Unknown User';
+            const username = profile.username || 'user';
+
             return (
-              <TouchableOpacity
-                style={styles.attendeeCard}
-                onPress={() => handleViewProfile(item.uid)}
-              >
-                <View style={styles.attendeeAvatar}>
-                  {profile.profilePicture ? (
-                    <Text style={styles.attendeeAvatarText}>📷</Text>
-                  ) : (
-                    <Text style={styles.attendeeAvatarText}>
-                      {(profile.name || profile.username || '?')[0].toUpperCase()}
+              <View style={styles.attendeeCard}>
+                <TouchableOpacity
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                  onPress={() => handleViewProfile(item.uid)}
+                >
+                  <View style={styles.attendeeAvatar}>
+                    {profile.profilePicture ? (
+                      <Text style={styles.attendeeAvatarText}>📷</Text>
+                    ) : (
+                      <Text style={styles.attendeeAvatarText}>
+                        {(displayName)[0].toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.attendeeInfo}>
+                    <Text style={styles.attendeeName}>
+                      {displayName}
                     </Text>
-                  )}
-                </View>
-                <View style={styles.attendeeInfo}>
-                  <Text style={styles.attendeeName}>
-                    {profile.name || profile.username || 'Unknown User'}
-                  </Text>
-                  <Text style={styles.attendeeUsername}>
-                    @{profile.username || 'user'}
-                  </Text>
-                  {profile.bio && (
-                    <Text style={styles.attendeeBio} numberOfLines={2}>
-                      {profile.bio}
+                    <Text style={styles.attendeeUsername}>
+                      @{username}
                     </Text>
-                  )}
-                </View>
-                <Text style={styles.arrowText}>→</Text>
-              </TouchableOpacity>
+                    {profile.bio && (
+                      <Text style={styles.attendeeBio} numberOfLines={2}>
+                        {profile.bio}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.arrowText}>→</Text>
+                </TouchableOpacity>
+                {isOrganizer && !isCurrentUser && (
+                  <TouchableOpacity
+                    onPress={() => handleRemoveAttendee(item.uid, displayName)}
+                    disabled={isRemoving}
+                    style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
+                  >
+                    {isRemoving ? (
+                      <ActivityIndicator size="small" color="#b00020" />
+                    ) : (
+                      <Text style={styles.removeButtonText}>Remove</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
             );
           }}
         />
@@ -273,6 +347,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    justifyContent: 'space-between',
   },
   attendeeAvatar: {
     width: 50,
@@ -311,6 +386,21 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: '600',
     marginLeft: 8,
+  },
+  removeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#ffebee',
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  removeButtonDisabled: {
+    opacity: 0.5,
+  },
+  removeButtonText: {
+    color: '#b00020',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

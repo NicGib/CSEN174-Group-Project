@@ -332,7 +332,53 @@ export default function MatchScreen() {
     );
   }
 
-  // Discover view - no more matches
+  // Discover view - no matches at all
+  if (!loading && matches.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerTitle}>Discover</Text>
+            <View style={styles.viewModeToggle}>
+              <TouchableOpacity
+                style={[styles.toggleButton, styles.toggleButtonActive]}
+                onPress={() => setViewMode('discover')}
+              >
+                <Text style={[styles.toggleButtonText, styles.toggleButtonTextActive]}>
+                  Discover
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={() => setViewMode('matches')}
+              >
+                <Text style={styles.toggleButtonText}>
+                  Matches {mutualMatches.length > 0 && `(${mutualMatches.length})`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <Text style={styles.headerSubtitle}>
+            No matches available
+          </Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>No matches found</Text>
+          <Text style={styles.emptyText}>
+            Check back later for more potential matches!
+          </Text>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={() => loadMatches(false)}
+          >
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Discover view - no more matches (went through all of them)
   if (currentIndex >= matches.length && matches.length > 0) {
     return (
       <View style={styles.container}>
