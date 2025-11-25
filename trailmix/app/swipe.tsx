@@ -4,36 +4,39 @@ import SwipeCard from "../components/SwipeCard";
 
 const profiles = [
   {
+    id: 1,
     name: "John Doe",
     age: 24,
     location: "Santa Clara, CA",
     bio: "A high-energy adventurer looking for the next thrilling trail.",
-    photos: [
-      "https://images.pexels.com/photos/1526404/pexels-photo-1526404.jpeg",
-      "https://images.pexels.com/photos/696682/pexels-photo-696682.jpeg",
-      "https://images.pexels.com/photos/2067804/pexels-photo-2067804.jpeg",
-    ],
+    photos: ["https://images.pexels.com/photos/1526404/pexels-photo-1526404.jpeg"],
+  },
+  {
+    id: 2,
+    name: "Alex Rivera",
+    age: 27,
+    location: "San Jose, CA",
+    bio: "Weekend hiker & UX nerd. Always down for sunset loops.",
+    photos: ["https://images.pexels.com/photos/697626/pexels-photo-697626.jpeg"],
   },
 ];
 
 export default function SwipeScreen() {
-  const [current, setCurrent] = useState(0);
+  const [index, setIndex] = useState(0);
 
-  const handleLike = () => {
-    console.log("liked");
-  };
-
-  const handlePass = () => {
-    console.log("passed");
+  const nextCard = () => {
+    setIndex((i) => (i + 1 < profiles.length ? i + 1 : 0));
   };
 
   return (
     <View style={styles.container}>
-      <SwipeCard
-        profile={profiles[current]}
-        onLike={handleLike}
-        onPass={handlePass}
-      />
+      {profiles[index] && (
+        <SwipeCard
+          profile={profiles[index]}
+          onSwipeLeft={nextCard}
+          onSwipeRight={nextCard}
+        />
+      )}
     </View>
   );
 }
@@ -43,6 +46,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#DCC3DA",
     justifyContent: "center",
-    paddingBottom: 60,
   },
 });
+
