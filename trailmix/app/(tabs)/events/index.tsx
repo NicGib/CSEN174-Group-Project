@@ -249,23 +249,38 @@ export default function EventsScreen() {
 
 
   const onDeleteEvent = async (eventId: string) => {
+    console.log("🗑️ [FRONTEND] onDeleteEvent called with eventId:", eventId);
     try {
       const user = auth.currentUser;
-      if (!user) throw new Error("You must be signed in");
+      if (!user) {
+        console.error("   ❌ No user found");
+        throw new Error("You must be signed in");
+      }
+      
+      console.log("   User UID:", user.uid);
       
       Alert.alert(
         "Delete Event",
         "Are you sure you want to delete this event? This action cannot be undone.",
         [
-          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Cancel", 
+            style: "cancel",
+            onPress: () => {
+              console.log("   User cancelled deletion");
+            }
+          },
           {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
+              console.log("   User confirmed deletion, calling deleteEvent...");
               try {
                 await deleteEvent(eventId, user.uid);
+                console.log("   ✅ Event deleted successfully, reloading...");
                 await load();
               } catch (e: any) {
+                console.error("   ❌ Error deleting event:", e);
                 setErr(e.message || "Failed to delete event");
               }
             },
@@ -273,6 +288,7 @@ export default function EventsScreen() {
         ]
       );
     } catch (e: any) {
+      console.error("   ❌ Error in onDeleteEvent:", e);
       setErr(e.message || "Failed to delete event");
     }
   };

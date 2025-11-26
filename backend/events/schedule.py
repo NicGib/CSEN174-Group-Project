@@ -1,7 +1,7 @@
 import time
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from dotenv import load_dotenv
@@ -73,7 +73,7 @@ def create_hiking_event(title: str, location: str, event_date: str,
         description: Optional event description
         max_attendees: Maximum number of attendees (default: 20)
         difficulty_level: Difficulty level (beginner, intermediate, advanced)
-        organizer_uid: UID of the event organizer
+        organizer_uid: UID of the event organizer (required)
     
     Returns:
         Dict with success status and event details
@@ -83,6 +83,9 @@ def create_hiking_event(title: str, location: str, event_date: str,
     # Validation
     if not title.strip() or not location.strip():
         raise ValueError("Title and location are required")
+    
+    if not organizer_uid or not organizer_uid.strip():
+        raise ValueError("Organizer UID is required")
     
     if max_attendees <= 0:
         raise ValueError("Max attendees must be greater than 0")
@@ -281,6 +284,31 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
         print(f"Failed to remove attendee: {e}")
         raise RuntimeError(f"Failed to remove attendee: {e}")
 
+def delete_hiking_event_by_id(event_id: str) -> bool:
+    """
+    Delete an event by ID without checking organizer permissions.
+    Used for automatic cleanup of expired events.
+    
+    Args:
+        event_id: ID of the event to delete
+    
+    Returns:
+        True if deleted, False if not found
+    """
+    try:
+        event_ref = db.collection("hiking_events").document(event_id)
+        event_doc = event_ref.get()
+        
+        if not event_doc.exists:
+            return False
+        
+        event_ref.delete()
+        print(f"Automatically deleted expired event {event_id}")
+        return True
+    except Exception as e:
+        print(f"Error deleting event {event_id}: {e}")
+        return False
+
 def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
     """
     Deletes a hiking event. Only the organizer can delete their event.
@@ -444,7 +472,9 @@ def interactive_event_manager():
         print("4. View event details")
         print("5. List all events")
         print("6. Find events by location")
-        print("7. Exit")
+        print("7. Delete event")
+        print("8. Cleanup expired events")
+        print("9. Exit")
         
         choice = input("\nEnter your choice (1-7): ").strip()
         
@@ -544,13 +574,77 @@ def interactive_event_manager():
                     print("-" * 40)
             else:
                 print(f"\nNo events found at {location}")
-                
+
         elif choice == "7":
-            print("\nGoodbye!")
-            break
+            print("\nDELETE EVENT")
+            print("-" * 30)
+            event_id = input("Event ID: ").strip()
+            organizer_uid = input("Organizer UID: ").strip()
+            result = delete_hiking_event(event_id, organizer_uid)
+            print(f"\nSUCCESS: {json.dumps(result, indent=2)}")
+        
+        elif choice == "8":
+            print("\nCLEANUP EXPIRED EVENTS")
+            print("-" * 30)
+            cleanup_expired_events()
             
         else:
             print("\nInvalid choice. Please try again.")
+
+def cleanup_expired_events() -> int:
+    """
+    Delete events that started more than 1 hour ago.
+    This function is called periodically by the scheduler.
+    
+    Returns:
+        Number of events deleted
+    """
+    try:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        one_hour_ago = now - timedelta(hours=1)
+        
+        # Query events where event_date is less than one hour ago
+        events_ref = db.collection("hiking_events")
+        
+        # Get all events (we'll filter in Python since Firestore datetime queries can be tricky)
+        all_events = events_ref.stream()
+        
+        deleted_count = 0
+        for event_doc in all_events:
+            event_data = event_doc.to_dict()
+            event_date = event_data.get("event_date")
+            
+            if event_date:
+                # Handle Firestore Timestamp
+                if hasattr(event_date, 'timestamp'):
+                    event_datetime = datetime.fromtimestamp(event_date.timestamp())
+                elif isinstance(event_date, datetime):
+                    event_datetime = event_date
+                    # Remove timezone if present
+                    if event_datetime.tzinfo is not None:
+                        event_datetime = event_datetime.replace(tzinfo=None)
+                elif isinstance(event_date, str):
+                    try:
+                        event_datetime = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+                        if event_datetime.tzinfo is not None:
+                            event_datetime = event_datetime.replace(tzinfo=None)
+                    except:
+                        continue
+                else:
+                    continue
+                
+                # Check if event started more than 1 hour ago
+                if event_datetime < one_hour_ago:
+                    if delete_hiking_event_by_id(event_doc.id):
+                        deleted_count += 1
+        
+        if deleted_count > 0:
+            print(f"Cleanup: Deleted {deleted_count} expired event(s)")
+        
+        return deleted_count
+    except Exception as e:
+        print(f"Error during event cleanup: {e}")
+        return 0
 
 if __name__ == "__main__":
     print("Starting TrailMix Hiking Event Management System")

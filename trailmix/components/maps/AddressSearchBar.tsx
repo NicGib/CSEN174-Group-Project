@@ -24,6 +24,10 @@ interface AddressSearchBarProps {
   placeholder?: string;
   skipPlaceDetails?: boolean; // Skip fetching place details (faster, for forms)
   initialAddress?: string; // Initial address value to display
+  containerStyle?: any; // Custom styles for the container
+  collapsedBarStyle?: any; // Custom styles for the collapsed search bar
+  expandedBarStyle?: any; // Custom styles for the expanded search bar
+  suggestionsStyle?: any; // Custom styles for the suggestions container
 }
 
 // Helper function to get icon based on result type
@@ -70,12 +74,26 @@ const MAX_RECENT_SEARCHES = 5;
  * Address search bar component with autocomplete suggestions
  * Handles address input, suggestions display, and location selection
  */
-export function AddressSearchBar({ onLocationSelect, onClear, userLocation, variant = 'floating', placeholder = 'Search', skipPlaceDetails = false, initialAddress }: AddressSearchBarProps) {
-  const [showAddressBar, setShowAddressBar] = useState(false); // Start hidden, show when user interacts
+export function AddressSearchBar({ 
+  onLocationSelect, 
+  onClear, 
+  userLocation, 
+  variant = 'floating', 
+  placeholder = 'Search', 
+  skipPlaceDetails = false, 
+  initialAddress,
+  containerStyle,
+  collapsedBarStyle,
+  expandedBarStyle,
+  suggestionsStyle,
+}: AddressSearchBarProps) {
+  // For floating variant (maps), collapsed bar is always visible when not expanded
+  // For form variant, start hidden
+  const [showAddressBar, setShowAddressBar] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [slideUpAnim] = useState(new Animated.Value(0));
   const [recentSearches, setRecentSearches] = useState<AddressSuggestion[]>([]);
-  const isProgrammaticUpdateRef = React.useRef(false); // Track if address is being set programmatically
+  const isFormMode = variant === 'form';
 
   const {
     addressInput,
@@ -92,18 +110,13 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
     minInputLength: 2,
     maxResults: 10,
     userLocation: userLocation || null,
-    shouldSearch: showAddressBar, // Only search when the search bar is open
+    shouldSearch: isFormMode ? showAddressBar : true, // For floating variant, always allow search. For form, only when expanded.
   });
 
   // Initialize address input with initialAddress on mount
   useEffect(() => {
     if (initialAddress) {
-      isProgrammaticUpdateRef.current = true;
-      setAddressInput(initialAddress);
-      // Reset flag after a short delay to allow the update to complete
-      setTimeout(() => {
-        isProgrammaticUpdateRef.current = false;
-      }, 100);
+      setAddressInput(initialAddress, true); // Skip search for programmatic update
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
@@ -113,13 +126,8 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
   const prevInitialAddressRef = React.useRef<string | undefined>(initialAddress);
   useEffect(() => {
     if (initialAddress && !addressInput && initialAddress !== prevInitialAddressRef.current) {
-      isProgrammaticUpdateRef.current = true;
-      setAddressInput(initialAddress);
+      setAddressInput(initialAddress, true); // Skip search for programmatic update
       prevInitialAddressRef.current = initialAddress;
-      // Reset flag after a short delay
-      setTimeout(() => {
-        isProgrammaticUpdateRef.current = false;
-      }, 100);
     } else if (initialAddress !== prevInitialAddressRef.current) {
       prevInitialAddressRef.current = initialAddress;
     }
@@ -255,7 +263,7 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
       const selectedAddress = suggestion.displayName;
       
       // Keep the address in the search bar - set it before calling onLocationSelect
-      setAddressInput(selectedAddress);
+      setAddressInput(selectedAddress, true); // Skip search for programmatic update
       
       onLocationSelect({
         latitude: suggestion.latitude,
@@ -283,8 +291,10 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
       // Save to recent searches
       await saveToRecentSearches(suggestion);
       
-      // Keep the address in the search bar
-      setAddressInput(suggestion.displayName);
+      // Keep the address in the search bar (already set by handleSelectSuggestion, but update if needed)
+      // Note: handleSelectSuggestion already sets the address, so this might be redundant
+      // but keeping it for consistency
+      setAddressInput(suggestion.displayName, true); // Skip search for programmatic update
       onLocationSelect({
         latitude: result.location.latitude,
         longitude: result.location.longitude,
@@ -323,19 +333,155 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
     }
   };
 
-  const isFormMode = variant === 'form';
+  // For floating variant, render without container wrapper to allow absolute positioning
+  if (!isFormMode) {
+    return (
+      <>
+        {/* Collapsed search bar - always visible when not expanded */}
+        {!showAddressBar && (
+          <TouchableOpacity
+            style={[styles.googleSearchBar, collapsedBarStyle]}
+            onPress={() => toggleAddressBar(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="search" size={20} color="#5f6368" />
+            <Text style={styles.googleSearchBarText} numberOfLines={1}>
+              {addressInput || placeholder}
+            </Text>
+          </TouchableOpacity>
+        )}
 
+        {/* Expanded search bar */}
+        {showAddressBar && (
+          <Animated.View style={[styles.googleSearchBarExpanded, expandedBarStyle]}>
+            <View style={styles.googleSearchBarContent}>
+              <MaterialIcons name="search" size={20} color="#5f6368" style={{ marginRight: 12 }} />
+              <TextInput
+                style={styles.googleSearchInput}
+                placeholder={placeholder}
+                placeholderTextColor="#9aa0a6"
+                value={addressInput}
+                onChangeText={setAddressInput}
+                onSubmitEditing={handleGeocodePress}
+                returnKeyType="search"
+                autoFocus={showAddressBar}
+              />
+              {addressInput.length > 0 && (
+                <TouchableOpacity onPress={clearAddress} style={styles.googleClearButton}>
+                  <MaterialIcons name="close" size={18} color="#5f6368" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => toggleAddressBar(false)}
+                style={styles.googleBackButton}
+              >
+                <MaterialIcons name="arrow-back" size={20} color="#5f6368" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Suggestions list - only show when search bar is open */}
+        {showAddressBar && (displaySuggestions.length > 0 || isLoading) && (
+          <Animated.View
+            style={[
+              styles.googleSuggestionsSheet,
+              {
+                top: Platform.OS === 'ios' ? 120 : 100,
+                bottom: Math.max(keyboardHeight, 0),
+              },
+              suggestionsStyle,
+            ]}
+          >
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              style={styles.googleSuggestionsScrollView}
+              contentContainerStyle={styles.googleSuggestionsContent}
+              nestedScrollEnabled={true}
+            >
+              {/* Use Current Location option */}
+              {userLocation && addressInput.trim().length < 2 && (
+                <TouchableOpacity
+                  style={styles.googleSuggestionItem}
+                  onPress={handleUseCurrentLocation}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.googleSuggestionIcon}>
+                    <MaterialIcons name="my-location" size={24} color="#4285f4" />
+                  </View>
+                  <View style={styles.googleSuggestionTextContainer}>
+                    <Text style={styles.googleSuggestionTitle}>Use current location</Text>
+                    <Text style={styles.googleSuggestionSubtitle}>Tap to use your current location</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              
+              {/* Recent searches header */}
+              {addressInput.trim().length < 2 && recentSearches.length > 0 && (
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionHeaderText}>Recent searches</Text>
+                </View>
+              )}
+              
+              {isLoading && (
+                <View style={[styles.googleSuggestionItem, { justifyContent: 'center' }]}>
+                  <ActivityIndicator size="small" color="#4285f4" />
+                  <Text style={styles.googleSuggestionText}>Searching...</Text>
+                </View>
+              )}
+              {displaySuggestions.map((suggestion, index) => {
+                const mainText = suggestion.address_line1 || suggestion.displayName.split(',')[0];
+                const secondaryText = suggestion.address_line2 || 
+                                     (suggestion.displayName.includes(',') 
+                                       ? suggestion.displayName.split(',').slice(1).join(',').trim() 
+                                       : '');
+                
+                return (
+                  <TouchableOpacity
+                    key={`${suggestion.latitude}-${suggestion.longitude}-${index}`}
+                    style={styles.googleSuggestionItem}
+                    onPress={() => handleSuggestionSelect(suggestion)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.googleSuggestionIcon}>
+                      <MaterialIcons 
+                        name={getIconForType(suggestion.result_type)} 
+                        size={24} 
+                        color="#5f6368" 
+                      />
+                    </View>
+                    <View style={styles.googleSuggestionTextContainer}>
+                      <Text style={styles.googleSuggestionTitle} numberOfLines={1}>
+                        {highlightText(mainText, addressInput.trim())}
+                      </Text>
+                      {secondaryText && (
+                        <Text style={styles.googleSuggestionSubtitle} numberOfLines={1}>
+                          {secondaryText}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        )}
+      </>
+    );
+  }
+
+  // Form variant - render with container
   return (
-    <View style={isFormMode ? styles.formContainer : undefined}>
-      {/* Collapsed search bar */}
+    <View style={[styles.formContainer, containerStyle]}>
+      {/* Collapsed search bar - show when not expanded */}
       {!showAddressBar && (
         <TouchableOpacity
-          style={isFormMode ? styles.formSearchBarCollapsed : styles.googleSearchBar}
+          style={[styles.formSearchBarCollapsed, collapsedBarStyle]}
           onPress={() => toggleAddressBar(true)}
           activeOpacity={0.8}
         >
           <MaterialIcons name="search" size={20} color="#5f6368" />
-          <Text style={isFormMode ? styles.formSearchBarText : styles.googleSearchBarText} numberOfLines={1}>
+          <Text style={styles.formSearchBarText} numberOfLines={1}>
             {addressInput || placeholder}
           </Text>
         </TouchableOpacity>
@@ -343,11 +489,11 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
 
       {/* Expanded search bar */}
       {showAddressBar && (
-        <Animated.View style={isFormMode ? styles.formSearchBar : styles.googleSearchBarExpanded}>
-          <View style={isFormMode ? styles.formSearchBarContent : styles.googleSearchBarContent}>
+        <Animated.View style={[styles.formSearchBar, expandedBarStyle]}>
+          <View style={styles.formSearchBarContent}>
             <MaterialIcons name="search" size={20} color="#5f6368" style={{ marginRight: 12 }} />
             <TextInput
-              style={isFormMode ? styles.formSearchInput : styles.googleSearchInput}
+              style={styles.formSearchInput}
               placeholder={placeholder}
               placeholderTextColor="#9aa0a6"
               value={addressInput}
@@ -361,30 +507,21 @@ export function AddressSearchBar({ onLocationSelect, onClear, userLocation, vari
                 <MaterialIcons name="close" size={18} color="#5f6368" />
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              onPress={() => toggleAddressBar(false)}
-              style={styles.googleBackButton}
-            >
-              <MaterialIcons name="arrow-back" size={20} color="#5f6368" />
-            </TouchableOpacity>
           </View>
         </Animated.View>
       )}
 
-      {/* Suggestions list - only show when search bar is open */}
-      {showAddressBar && (displaySuggestions.length > 0 || isLoading || (isFormMode && addressInput.trim().length < 2 && recentSearches.length > 0)) && (
+      {/* Suggestions list - only show when search bar is open and typing */}
+      {showAddressBar && (displaySuggestions.length > 0 || isLoading || (addressInput.trim().length < 2 && recentSearches.length > 0)) && (
         <Animated.View
           style={[
-            isFormMode ? styles.formSuggestionsSheet : styles.googleSuggestionsSheet,
-            isFormMode ? {} : {
-              top: Platform.OS === 'ios' ? 120 : 100,
-              bottom: Math.max(keyboardHeight, 0),
-            },
+            styles.formSuggestionsSheet,
+            suggestionsStyle,
           ]}
         >
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            style={isFormMode ? styles.formSuggestionsScrollView : styles.googleSuggestionsScrollView}
+            style={styles.formSuggestionsScrollView}
             contentContainerStyle={styles.googleSuggestionsContent}
             nestedScrollEnabled={true}
           >
@@ -475,8 +612,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 4,
-    zIndex: 1000,
+    elevation: 10, // Higher elevation for Android
+    zIndex: 1000, // Higher z-index for iOS
   },
   googleSearchBarText: {
     marginLeft: 12,
@@ -495,8 +632,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 4,
-    zIndex: 1000,
+    elevation: 10, // Higher elevation for Android
+    zIndex: 1000, // Higher z-index for iOS
   },
   googleSearchBarContent: {
     flexDirection: 'row',
@@ -529,8 +666,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 4,
-    zIndex: 999,
+    elevation: 9, // Slightly lower than search bar but still high
+    zIndex: 999, // Slightly lower than search bar but still high
     maxHeight: 400,
   },
   googleSuggestionsScrollView: {

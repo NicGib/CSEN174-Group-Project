@@ -262,12 +262,12 @@ class LocationService {
     
     // Only actually stop tracking if no components are using it
     if (this.trackingRefCount === 0 && this.isTracking) {
-      if (this.watchSubscription) {
-        this.watchSubscription.remove();
-        this.watchSubscription = null;
-      }
-      this.isTracking = false;
-      console.log('Location tracking stopped');
+    if (this.watchSubscription) {
+      this.watchSubscription.remove();
+      this.watchSubscription = null;
+    }
+    this.isTracking = false;
+    console.log('Location tracking stopped');
     }
   }
 

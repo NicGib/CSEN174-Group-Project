@@ -21,6 +21,7 @@ import {
   PotentialMatch,
   MutualMatch,
 } from '@/src/lib/matchingService';
+import { getConversations, Conversation } from '@/src/lib/messagingService';
 import { auth } from '@/src/lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -39,6 +40,12 @@ interface CachedMutualMatches {
   timestamp: number;
 }
 
+interface EnhancedMatch extends MutualMatch {
+  hasUnreadMessages?: boolean;
+  lastMessageTime?: string;
+  hasNeverMessaged?: boolean;
+}
+
 type ViewMode = 'discover' | 'matches';
 
 export default function MatchScreen() {
@@ -46,6 +53,8 @@ export default function MatchScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('discover');
   const [matches, setMatches] = useState<PotentialMatch[]>([]);
   const [mutualMatches, setMutualMatches] = useState<MutualMatch[]>([]);
+  const [enhancedMatches, setEnhancedMatches] = useState<EnhancedMatch[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
@@ -125,6 +134,78 @@ export default function MatchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load conversations and enhance matches with message info
+  const loadConversationsAndEnhanceMatches = useCallback(async (matches: MutualMatch[]) => {
+    const user = auth.currentUser;
+    if (!user) return matches;
+
+    try {
+      // Load conversations
+      const convs = await getConversations(user.uid);
+      setConversations(convs);
+
+      // Create a map of conversations by other_user_uid
+      const conversationMap = new Map<string, Conversation>();
+      convs.forEach(conv => {
+        conversationMap.set(conv.other_user_uid, conv);
+      });
+
+      // Enhance matches with conversation info
+      const enhanced: EnhancedMatch[] = matches.map(match => {
+        const conversation = conversationMap.get(match.uid);
+        const hasConversation = !!conversation;
+        const lastMessage = conversation?.last_message;
+        
+        // Check if there are unread messages (last message was sent by the other user)
+        const hasUnread = hasConversation && lastMessage && lastMessage.sender_uid === match.uid;
+        
+        return {
+          ...match,
+          hasUnreadMessages: hasUnread,
+          lastMessageTime: lastMessage?.created_at,
+          hasNeverMessaged: !hasConversation,
+        };
+      });
+
+      // Sort matches:
+      // 1. Unread messages first (by most recent message)
+      // 2. Never messaged (by match date)
+      // 3. Messaged (by most recent message)
+      enhanced.sort((a, b) => {
+        // Priority 1: Unread messages first
+        if (a.hasUnreadMessages && !b.hasUnreadMessages) return -1;
+        if (!a.hasUnreadMessages && b.hasUnreadMessages) return 1;
+        
+        // If both have unread, sort by most recent message
+        if (a.hasUnreadMessages && b.hasUnreadMessages) {
+          const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return bTime - aTime;
+        }
+        
+        // Priority 2: Never messaged (only if neither has unread)
+        if (a.hasNeverMessaged && !b.hasNeverMessaged) return -1;
+        if (!a.hasNeverMessaged && b.hasNeverMessaged) return 1;
+        
+        // If both never messaged, sort by match date
+        if (a.hasNeverMessaged && b.hasNeverMessaged) {
+          return new Date(b.matchedAt).getTime() - new Date(a.matchedAt).getTime();
+        }
+        
+        // Priority 3: Both have messaged (sort by most recent message)
+        const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : new Date(a.matchedAt).getTime();
+        const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : new Date(b.matchedAt).getTime();
+        return bTime - aTime;
+      });
+
+      setEnhancedMatches(enhanced);
+    } catch (error: any) {
+      console.error('Error loading conversations:', error);
+      // If conversations fail, just use matches as-is
+      setEnhancedMatches(matches.map(m => ({ ...m, hasNeverMessaged: true })));
+    }
+  }, []);
+
   const loadMutualMatches = useCallback(async (useCache: boolean = true) => {
     let hasCachedData = false;
     
@@ -135,13 +216,14 @@ export default function MatchScreen() {
           const cached = await AsyncStorage.getItem(MUTUAL_MATCHES_CACHE_KEY);
           if (cached) {
             const cachedData: CachedMutualMatches = JSON.parse(cached);
-            const now = Date.now();
-            if (now - cachedData.timestamp < CACHE_EXPIRY) {
+            // Always show cached data if available (even if expired), then refresh in background
+            if (cachedData.matches.length > 0) {
               // Show cached data immediately
               setMutualMatches(cachedData.matches);
+              await loadConversationsAndEnhanceMatches(cachedData.matches);
               setLoadingMutualMatches(false);
               hasCachedData = true;
-              // Continue to fetch fresh data in background
+              // Always fetch fresh data in background (regardless of expiry)
             } else {
               setLoadingMutualMatches(true);
             }
@@ -160,6 +242,7 @@ export default function MatchScreen() {
       try {
         const matches = await getMutualMatches();
         setMutualMatches(matches);
+        await loadConversationsAndEnhanceMatches(matches);
         
         // Cache the results
         try {
@@ -187,7 +270,7 @@ export default function MatchScreen() {
       }
       setLoadingMutualMatches(false);
     }
-  }, []);
+  }, [loadConversationsAndEnhanceMatches]);
 
   // Reload matches when tab comes into focus (user switches to this tab)
   useFocusEffect(
@@ -202,25 +285,27 @@ export default function MatchScreen() {
     }, [loadMatches, loadMutualMatches, viewMode])
   );
 
-  // Load mutual matches when switching to matches view - show cache immediately
+  // Load mutual matches when switching to matches view - show cache immediately but always refresh
   useEffect(() => {
     if (viewMode === 'matches') {
-      loadMutualMatches(true); // Use cache
+      // Show cache immediately, but always fetch fresh data in background
+      loadMutualMatches(true); // Use cache for immediate display, but always refresh in background
     }
   }, [viewMode, loadMutualMatches]);
 
-  // Filter mutual matches based on search query
+  // Filter mutual matches based on search query (use enhanced matches for sorting)
   const filteredMutualMatches = useMemo(() => {
+    const matchesToFilter = enhancedMatches.length > 0 ? enhancedMatches : mutualMatches;
     if (!searchQuery.trim()) {
-      return mutualMatches;
+      return matchesToFilter;
     }
     const query = searchQuery.toLowerCase().trim();
-    return mutualMatches.filter((match) => {
+    return matchesToFilter.filter((match) => {
       const name = (match.name || '').toLowerCase();
       const username = (match.username || '').toLowerCase();
       return name.includes(query) || username.includes(query);
     });
-  }, [mutualMatches, searchQuery]);
+  }, [enhancedMatches, mutualMatches, searchQuery]);
 
   const handleSwipeLeft = useCallback(async () => {
     if (swiping || currentIndex >= matches.length) return;
@@ -393,42 +478,57 @@ export default function MatchScreen() {
                 <Text style={styles.refreshingText}>Refreshing...</Text>
               </View>
             )}
-            {filteredMutualMatches.map((match) => (
-              <TouchableOpacity
-                key={match.uid}
-                style={styles.matchCard}
-                onPress={() => {
-                  // Store current route before navigating to messages
-                  const currentRoute = '/(tabs)/match';
-                  pushRoute(currentRoute);
-                  router.push(`/(tabs)/message/${match.uid}` as any);
-                }}
-              >
-                <View style={styles.matchCardContent}>
-                  <View style={styles.matchAvatar}>
-                    {match.profilePicture ? (
-                      <Text style={styles.matchAvatarText}>📷</Text>
-                    ) : (
-                      <Text style={styles.matchAvatarText}>
-                        {(match.name || match.username || '?')[0].toUpperCase()}
+            {filteredMutualMatches.map((match) => {
+              const enhancedMatch = match as EnhancedMatch;
+              return (
+                <TouchableOpacity
+                  key={match.uid}
+                  style={styles.matchCard}
+                  onPress={() => {
+                    // Store current route before navigating to messages
+                    const currentRoute = '/(tabs)/match';
+                    pushRoute(currentRoute);
+                    router.push(`/(tabs)/message/${match.uid}` as any);
+                  }}
+                >
+                  <View style={styles.matchCardContent}>
+                    <View style={styles.matchAvatarContainer}>
+                      <View style={styles.matchAvatar}>
+                        {match.profilePicture ? (
+                          <Text style={styles.matchAvatarText}>📷</Text>
+                        ) : (
+                          <Text style={styles.matchAvatarText}>
+                            {(match.name || match.username || '?')[0].toUpperCase()}
+                          </Text>
+                        )}
+                      </View>
+                      {enhancedMatch.hasUnreadMessages && (
+                        <View style={styles.unreadBadge} />
+                      )}
+                    </View>
+                    <View style={styles.matchInfo}>
+                      <View style={styles.matchNameRow}>
+                        <Text style={styles.matchName}>
+                          {match.name || match.username || 'Unknown User'}
+                        </Text>
+                        {enhancedMatch.hasUnreadMessages && (
+                          <View style={styles.unreadIndicator}>
+                            <Text style={styles.unreadIndicatorText}>●</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.matchUsername}>
+                        @{match.username || 'user'}
                       </Text>
-                    )}
+                      <Text style={styles.matchDate}>
+                        Matched {formatDate(match.matchedAt)}
+                      </Text>
+                    </View>
+                    <Text style={styles.arrowText}>→</Text>
                   </View>
-                  <View style={styles.matchInfo}>
-                    <Text style={styles.matchName}>
-                      {match.name || match.username || 'Unknown User'}
-                    </Text>
-                    <Text style={styles.matchUsername}>
-                      @{match.username || 'user'}
-                    </Text>
-                    <Text style={styles.matchDate}>
-                      Matched {formatDate(match.matchedAt)}
-                    </Text>
-                  </View>
-                  <Text style={styles.arrowText}>→</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         )}
       </View>
@@ -764,6 +864,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  matchAvatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
   matchAvatar: {
     width: 60,
     height: 60,
@@ -771,21 +875,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   matchAvatarText: {
     fontSize: 24,
     color: '#fff',
     fontWeight: 'bold',
   },
+  unreadBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   matchInfo: {
     flex: 1,
+  },
+  matchNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   matchName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+  },
+  unreadIndicator: {
+    marginLeft: 8,
+  },
+  unreadIndicatorText: {
+    fontSize: 12,
+    color: '#FF3B30',
   },
   matchUsername: {
     fontSize: 14,

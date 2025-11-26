@@ -39,6 +39,7 @@ cleanup() {
     echo "Cleaning up..."
     docker-compose down
     rm -f "$TUNNEL_URL_FILE"
+    rm -f "${FRONTEND_DIR}/.tunnel-url"
     exit 0
 }
 
@@ -48,6 +49,9 @@ trap cleanup INT TERM EXIT
 echo "Starting Docker containers..."
 cd "$SCRIPT_DIR"
 docker-compose down --remove-orphans >/dev/null 2>&1
+# Clean up old tunnel URL files to ensure fresh start
+rm -f "$TUNNEL_URL_FILE"
+rm -f "${FRONTEND_DIR}/.tunnel-url"
 docker-compose up -d backend cloudflared
 
 # Wait for backend to be ready (healthcheck handles this, but we'll wait a bit)
@@ -65,10 +69,13 @@ fi
 
 echo "Tunnel URL: $TUNNEL_URL"
 echo "$TUNNEL_URL" > "$TUNNEL_URL_FILE"
+# Also update trailmix/.tunnel-url for app.config.js
+echo "$TUNNEL_URL" > "${FRONTEND_DIR}/.tunnel-url"
 
 # Set environment variable for Expo
 export EXPO_PUBLIC_API_BASE_URL="${TUNNEL_URL}/api/v1"
 echo "API Base URL: $EXPO_PUBLIC_API_BASE_URL"
+echo "Updated tunnel URL files: $TUNNEL_URL_FILE and ${FRONTEND_DIR}/.tunnel-url"
 echo ""
 
 # Option 1: Start frontend container in Docker

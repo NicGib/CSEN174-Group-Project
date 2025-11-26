@@ -204,6 +204,8 @@ module.exports = {
         NSLocationWhenInUseUsageDescription: "This app uses your location to show nearby hiking trails and provide navigation features.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "This app uses your location to track your hiking activities and provide navigation features.",
         NSLocationAlwaysUsageDescription: "This app uses your location to track your hiking activities and provide navigation features.",
+        NSCameraUsageDescription: "This app needs access to your camera to take profile pictures.",
+        NSPhotoLibraryUsageDescription: "This app needs access to your photo library to select profile pictures.",
       }
     },
     android: {
@@ -218,7 +220,11 @@ module.exports = {
       permissions: [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
       ]
     },
     web: {
@@ -245,6 +251,13 @@ module.exports = {
           dark: {
             backgroundColor: "#000000"
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "This app needs access to your photo library to select profile pictures.",
+          cameraPermission: "This app needs access to your camera to take profile pictures.",
         }
       ]
     ],
