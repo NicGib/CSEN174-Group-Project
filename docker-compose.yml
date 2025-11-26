@@ -46,6 +46,8 @@ services:
       # Mount secrets directory for Firebase credentials and .env
       # Backend code looks for secrets at /app/secrets (3 levels up from backend/accounts/signups.py)
       - ./secrets:/app/secrets:ro
+      # Mount uploads directory to persist uploaded files
+      - ./backend/uploads:/app/uploads
     environment:
       - CORS_ALLOW_ORIGINS=*
     env_file:

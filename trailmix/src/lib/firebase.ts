@@ -8,6 +8,7 @@ import {
   getReactNativePersistence
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -69,3 +70,4 @@ let authInstance = (() => {
 
 export const auth = authInstance;
 export const db = getFirestore(app);
+export const storage = getStorage(app);

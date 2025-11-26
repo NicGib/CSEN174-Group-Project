@@ -27,5 +27,5 @@ EXPOSE 8000
 # Run the application as a module
 # Import backend.main which will work with relative imports
 # Use --log-level warning to reduce noise (only show warnings and errors)
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "warning"]
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
 

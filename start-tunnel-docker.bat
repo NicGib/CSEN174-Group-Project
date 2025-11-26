@@ -16,6 +16,9 @@ REM Start all services in Docker
 echo Starting Docker containers...
 cd /d "%SCRIPT_DIR%"
 docker-compose down --remove-orphans >nul 2>&1
+REM Clean up old tunnel URL files to ensure fresh start
+if exist "%TUNNEL_URL_FILE%" del /q "%TUNNEL_URL_FILE%"
+if exist "%FRONTEND_DIR%\.tunnel-url" del /q "%FRONTEND_DIR%\.tunnel-url"
 REM Start backend and cloudflared first, then frontend will start after tunnel URL is extracted
 docker-compose up -d backend cloudflared
 
@@ -54,10 +57,13 @@ if "!TUNNEL_URL!"=="" (
 
 echo Tunnel URL: !TUNNEL_URL!
 echo !TUNNEL_URL!> "%TUNNEL_URL_FILE%"
+REM Also update trailmix/.tunnel-url for app.config.js
+echo !TUNNEL_URL!> "%FRONTEND_DIR%\.tunnel-url"
 
 REM Set environment variable for frontend container
 set EXPO_PUBLIC_API_BASE_URL=!TUNNEL_URL!/api/v1
 echo API Base URL: !EXPO_PUBLIC_API_BASE_URL!
+echo Updated tunnel URL files: %TUNNEL_URL_FILE% and %FRONTEND_DIR%\.tunnel-url
 echo.
 
 REM Option 1: Start frontend container in Docker

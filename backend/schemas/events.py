@@ -9,7 +9,7 @@ class EventCreate(BaseModel):
     description: Optional[str] = ""
     max_attendees: int = Field(default=20, gt=0)
     difficulty_level: str = Field(default="beginner", pattern="^(beginner|intermediate|advanced)$")
-    organizer_uid: str = ""
+    organizer_uid: str = Field(..., min_length=1, description="UID of the event organizer (required)")
 
 class EventOut(BaseModel):
     success: bool
@@ -41,3 +41,9 @@ class EventDetails(BaseModel):
 class AttendeeAdd(BaseModel):
     user_uid: str
     user_name: Optional[str] = ""
+
+class EventDeleteResponse(BaseModel):
+    success: bool
+    event_id: str
+    message: str
+    timestamp: str

@@ -10,11 +10,12 @@ interface UseAddressSearchOptions {
   minInputLength?: number;
   maxResults?: number;
   userLocation?: { latitude: number; longitude: number } | null;
+  shouldSearch?: boolean; // Whether to trigger searches (e.g., when search bar is open)
 }
 
 interface UseAddressSearchReturn {
   addressInput: string;
-  setAddressInput: (value: string) => void;
+  setAddressInput: (value: string, skipSearch?: boolean) => void;
   suggestions: AddressSuggestion[];
   isLoading: boolean;
   isGeocoding: boolean;
@@ -37,6 +38,7 @@ export function useAddressSearch(
     minInputLength = 2,
     maxResults = 10,
     userLocation = null,
+    shouldSearch = true, // Default to true for backward compatibility
   } = options;
   const [addressInput, setAddressInput] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -44,6 +46,8 @@ export function useAddressSearch(
   const [isGeocoding, setIsGeocoding] = useState(false);
   const cancelRef = useRef<{ cancelled: boolean; timeoutId?: ReturnType<typeof setTimeout> }>({ cancelled: false });
   const isSelectingRef = useRef(false); // Flag to prevent searching when selecting a suggestion
+  const skipNextSearchRef = useRef(false); // Flag to skip the next search (for programmatic updates)
+  const previousInputRef = useRef(''); // Track previous input to detect actual changes
 
   // Function to cancel pending searches
   const cancelPendingSearch = useCallback(() => {
@@ -57,60 +61,155 @@ export function useAddressSearch(
 
   // Debounced address suggestions with optimized retry logic and location bias
   useEffect(() => {
+    // Normalize the input: trim and collapse multiple spaces (do this first for consistent comparison)
+    const normalizedInput = addressInput.trim().replace(/\s+/g, ' ');
+    
     // Skip searching if we're in the middle of selecting a suggestion
     if (isSelectingRef.current) {
+      previousInputRef.current = normalizedInput;
+      return;
+    }
+
+    // Skip searching if this is a programmatic update
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      previousInputRef.current = normalizedInput;
+      return;
+    }
+
+    // Don't search if normalized input hasn't actually changed (prevents unnecessary searches)
+    // But allow search if there's a pending timeout (user might have typed, then deleted, then typed again)
+    if (normalizedInput === previousInputRef.current && !cancelRef.current.timeoutId) {
+      // console.log('[useAddressSearch] Skipping search - input unchanged:', normalizedInput);
+      return;
+    }
+    
+    // console.log('[useAddressSearch] Input changed, will search:', {
+    //   previous: previousInputRef.current,
+    //   current: normalizedInput,
+    //   shouldSearch,
+    //   hasPendingTimeout: !!cancelRef.current.timeoutId
+    // });
+
+    // Don't search if shouldSearch is false (e.g., search bar is closed)
+    if (!shouldSearch) {
+      // Cancel any pending search and clear suggestions
+      cancelRef.current.cancelled = true;
+      if (cancelRef.current.timeoutId) {
+        clearTimeout(cancelRef.current.timeoutId);
+        cancelRef.current.timeoutId = undefined;
+      }
+      setSuggestions([]);
+      setIsLoading(false);
+      previousInputRef.current = normalizedInput; // Update ref even when not searching
       return;
     }
 
     // Cancel any pending search
-    cancelRef.current.cancelled = true;
     if (cancelRef.current.timeoutId) {
       clearTimeout(cancelRef.current.timeoutId);
+      cancelRef.current.timeoutId = undefined;
     }
-
-    // Normalize the input: trim and collapse multiple spaces
-    const normalizedInput = addressInput.trim().replace(/\s+/g, ' ');
+    cancelRef.current.cancelled = true;
     
+    // Don't search if input is too short - clear suggestions instead
     if (normalizedInput.length < minInputLength) {
       setSuggestions([]);
       setIsLoading(false);
+      previousInputRef.current = normalizedInput; // Update ref even when too short
+      // Don't reset cancelled flag here - it will be reset when a valid search starts
       return;
     }
 
+    // Update previous input ref when we start a new search (before debounce)
+    // This prevents duplicate searches even if the previous one gets cancelled
+    previousInputRef.current = normalizedInput;
+    
     // Reset cancellation flag for new search
     cancelRef.current.cancelled = false;
     
+    // Capture the normalized input at the time the timeout is set
+    const searchInput = normalizedInput;
+    
     const timeoutId = setTimeout(async () => {
-      if (cancelRef.current.cancelled) return;
-      
-      // Re-normalize in case input changed during debounce
-      const finalInput = addressInput.trim().replace(/\s+/g, ' ');
-      if (finalInput.length < minInputLength) {
-        setSuggestions([]);
-        setIsLoading(false);
+      // Check if this specific timeout was cancelled
+      if (cancelRef.current.cancelled || cancelRef.current.timeoutId !== timeoutId) {
+        // console.log('[useAddressSearch] Search cancelled before starting');
         return;
       }
       
+      // Re-check the current input to see if it changed during debounce
+      const currentNormalized = addressInput.trim().replace(/\s+/g, ' ');
+      
+      // If input changed during debounce, don't search (a new search will be triggered)
+      if (currentNormalized !== searchInput) {
+        // console.log('[useAddressSearch] Input changed during debounce, skipping search');
+        // Clear the timeout ID since we're not searching
+        if (cancelRef.current.timeoutId === timeoutId) {
+          cancelRef.current.timeoutId = undefined;
+        }
+        return;
+      }
+      
+      if (currentNormalized.length < minInputLength) {
+        setSuggestions([]);
+        setIsLoading(false);
+        // Clear the timeout ID
+        if (cancelRef.current.timeoutId === timeoutId) {
+          cancelRef.current.timeoutId = undefined;
+        }
+        return;
+      }
+      
+      // Mark that we're starting the search
       setIsLoading(true);
+      // console.log('[useAddressSearch] Starting search for:', currentNormalized);
       let retries = 1; // Reduced from 2 to 1 for faster failure handling
       let lastError: any = null;
       
-      while (retries >= 0 && !cancelRef.current.cancelled) {
+      // Capture the timeoutId to check if we're still the active search
+      const activeTimeoutId = timeoutId;
+      
+      while (retries >= 0) {
+        // Check if this search was cancelled or superseded
+        if (cancelRef.current.cancelled || cancelRef.current.timeoutId !== activeTimeoutId) {
+          // console.log('[useAddressSearch] Search cancelled during execution');
+          setIsLoading(false);
+          return;
+        }
+        
         try {
           // Pass normalized input and user location for location bias if available
           const addressSuggestions = await locationService.getAddressSuggestions(
-            finalInput,
+            currentNormalized,
             maxResults,
             userLocation ? { userLocation } : undefined
           );
           
-          if (!cancelRef.current.cancelled) {
-            setSuggestions(addressSuggestions || []);
+          // Check again if we're still the active search before setting results
+          if (cancelRef.current.timeoutId === activeTimeoutId && !cancelRef.current.cancelled) {
+            const finalCheck = addressInput.trim().replace(/\s+/g, ' ');
+            // Only update if input hasn't changed (allow same input to update results)
+            if (finalCheck === currentNormalized || finalCheck.startsWith(currentNormalized)) {
+              // console.log('[useAddressSearch] Search completed, got', addressSuggestions?.length || 0, 'suggestions');
+              setSuggestions(addressSuggestions || []);
+              setIsLoading(false);
+              // Clear the timeout ID since this search completed
+              if (cancelRef.current.timeoutId === activeTimeoutId) {
+                cancelRef.current.timeoutId = undefined;
+              }
+              return;
+            } else {
+              // console.log('[useAddressSearch] Input changed after search completed, discarding results');
+            }
+          }
+        } catch (error) {
+          // Check if cancelled before handling error
+          if (cancelRef.current.cancelled || cancelRef.current.timeoutId !== activeTimeoutId) {
+            // console.log('[useAddressSearch] Search cancelled during error handling');
             setIsLoading(false);
             return;
           }
-        } catch (error) {
-          if (cancelRef.current.cancelled) return;
           
           lastError = error;
           console.error(`Error fetching suggestions (${1 - retries + 1}/2):`, error);
@@ -122,10 +221,13 @@ export function useAddressSearch(
         }
       }
       
-      if (!cancelRef.current.cancelled) {
+      // Handle final failure case
+      if (cancelRef.current.timeoutId === activeTimeoutId && !cancelRef.current.cancelled) {
         console.error('Failed to fetch suggestions after retries:', lastError);
         setSuggestions([]);
         setIsLoading(false);
+        // Clear the timeout ID since this search completed (even if it failed)
+        cancelRef.current.timeoutId = undefined;
       }
     }, debounceMs);
 
@@ -140,7 +242,7 @@ export function useAddressSearch(
       // Reset loading state when effect is cleaned up (e.g., input changed or component unmounted)
       setIsLoading(false);
     };
-  }, [addressInput, debounceMs, minInputLength, maxResults, userLocation]);
+  }, [addressInput, debounceMs, minInputLength, maxResults, userLocation, shouldSearch]);
 
   const handleGeocode = useCallback(async (): Promise<LocationData | null> => {
     if (!addressInput.trim()) {
@@ -171,6 +273,7 @@ export function useAddressSearch(
     async (suggestion: AddressSuggestion): Promise<{ location: LocationData; placeDetails?: PlaceDetails | null } | null> => {
       // Set flag to prevent new searches while we're setting the address
       isSelectingRef.current = true;
+      skipNextSearchRef.current = true; // Also skip search for programmatic update
       
       // Cancel any pending searches immediately and reset loading state
       cancelPendingSearch();
@@ -221,6 +324,7 @@ export function useAddressSearch(
 
       // Update address input with the final canonical address if it changed
       if (displayAddress !== suggestion.displayName) {
+        skipNextSearchRef.current = true; // Skip search for this programmatic update too
         setAddressInput(displayAddress);
       }
       
@@ -244,13 +348,25 @@ export function useAddressSearch(
   );
 
   const clearAddress = useCallback(() => {
+    skipNextSearchRef.current = true; // Skip search when clearing
+    cancelPendingSearch(); // Cancel any pending searches
     setAddressInput('');
     setSuggestions([]);
+    previousInputRef.current = '';
+    setIsLoading(false);
+  }, [cancelPendingSearch]);
+  
+  // Wrapper for setAddressInput that allows skipping search
+  const setAddressInputWithSkip = useCallback((value: string, skipSearch: boolean = false) => {
+    if (skipSearch) {
+      skipNextSearchRef.current = true;
+    }
+    setAddressInput(value);
   }, []);
 
   return {
     addressInput,
-    setAddressInput,
+    setAddressInput: setAddressInputWithSkip,
     suggestions,
     isLoading,
     isGeocoding,

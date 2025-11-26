@@ -100,4 +100,54 @@ export async function leaveEvent(eventId: string, user_uid: string) {
   }
 }
 
+export async function removeAttendee(eventId: string, user_uid: string) {
+  try {
+    const res = await fetch(
+      `${endpoints.events}/${encodeURIComponent(eventId)}/attendees/${encodeURIComponent(user_uid)}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Failed to remove attendee (${res.status}): ${errorText || res.statusText}`);
+    }
+    return res.json?.() ?? {};
+  } catch (error: any) {
+    if (error.message?.includes("Failed to remove")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
+}
+
+export async function deleteEvent(eventId: string, organizer_uid: string) {
+  const url = `${endpoints.events}/${encodeURIComponent(eventId)}?organizer_uid=${encodeURIComponent(organizer_uid)}`;
+  console.log("🗑️ [FRONTEND] deleteEvent called");
+  console.log("   eventId:", eventId);
+  console.log("   organizer_uid:", organizer_uid);
+  console.log("   Full URL:", url);
+  console.log("   Encoded eventId:", encodeURIComponent(eventId));
+  console.log("   Encoded organizer_uid:", encodeURIComponent(organizer_uid));
+  
+  try {
+    console.log("   Making DELETE request...");
+    const res = await fetch(url, { method: "DELETE" });
+    
+    console.log("   Response status:", res.status);
+    console.log("   Response statusText:", res.statusText);
+    console.log("   Response headers:", Object.fromEntries(res.headers.entries()));
+    
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      console.error("   ❌ DELETE request failed:", res.status, errorText);
+      throw new Error(`Failed to delete event (${res.status}): ${errorText || res.statusText}`);
+    }
+    
+    const result = res.json?.() ?? {};
+    console.log("   ✅ DELETE request successful");
+    return result;
+  } catch (error: any) {
+    console.error("   ❌ DELETE request error:", error);
+    if (error.message?.includes("Failed to delete")) throw error;
+    throw new Error(`Network error: ${error.message || "Could not connect to server"}`);
+  }
+}
+
 

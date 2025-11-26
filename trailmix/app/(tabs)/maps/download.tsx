@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, FlatList, RefreshControl, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useMapBuilder } from '@/hooks/useMapBuilder';
 import { SavedMap } from '@/src/lib/mapStorage';
+import { getLocalFileUri } from '@/src/utils/mapFileStorage';
 
 /**
  * Download/Builder Screen
@@ -63,7 +64,23 @@ export default function DownloadScreen() {
 
   const openSavedMap = React.useCallback(async (map: SavedMap) => {
     try {
-      await WebBrowser.openBrowserAsync(map.url);
+      // Prefer local file path if available (offline maps)
+      if (map.localFilePath) {
+        const fileUri = getLocalFileUri(map.localFilePath);
+        // Use Linking for local files (works offline)
+        const canOpen = await Linking.canOpenURL(fileUri);
+        if (canOpen) {
+          await Linking.openURL(fileUri);
+        } else {
+          // Fallback: try WebBrowser
+          await WebBrowser.openBrowserAsync(fileUri);
+        }
+      } else if (map.url) {
+        // Fallback to URL for backward compatibility (requires server connection)
+        await WebBrowser.openBrowserAsync(map.url);
+      } else {
+        Alert.alert('Error', 'Map file not found. Please download the map again.');
+      }
     } catch (e: any) {
       Alert.alert('Could not open map', e?.message || String(e));
     }

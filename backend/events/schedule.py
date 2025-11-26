@@ -1,7 +1,7 @@
 import time
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from dotenv import load_dotenv
@@ -73,7 +73,7 @@ def create_hiking_event(title: str, location: str, event_date: str,
         description: Optional event description
         max_attendees: Maximum number of attendees (default: 20)
         difficulty_level: Difficulty level (beginner, intermediate, advanced)
-        organizer_uid: UID of the event organizer
+        organizer_uid: UID of the event organizer (required)
     
     Returns:
         Dict with success status and event details
@@ -83,6 +83,9 @@ def create_hiking_event(title: str, location: str, event_date: str,
     # Validation
     if not title.strip() or not location.strip():
         raise ValueError("Title and location are required")
+    
+    if not organizer_uid or not organizer_uid.strip():
+        raise ValueError("Organizer UID is required")
     
     if max_attendees <= 0:
         raise ValueError("Max attendees must be greater than 0")
@@ -94,19 +97,46 @@ def create_hiking_event(title: str, location: str, event_date: str,
     try:
         if isinstance(event_date, str):
             if 'T' in event_date:
-                # ISO format with time
-                event_datetime = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+                # ISO format with time - handle both timezone-aware and naive formats
+                if event_date.endswith('Z'):
+                    # UTC timezone, convert to naive
+                    date_str = event_date.replace('Z', '+00:00')
+                    event_datetime = datetime.fromisoformat(date_str)
+                    # Convert to naive datetime (remove timezone)
+                    event_datetime = event_datetime.replace(tzinfo=None)
+                elif '+' in event_date or event_date.count('-') > 2:
+                    # Has timezone offset, parse and convert to naive
+                    event_datetime = datetime.fromisoformat(event_date)
+                    if event_datetime.tzinfo is not None:
+                        event_datetime = event_datetime.replace(tzinfo=None)
+                else:
+                    # Naive datetime format (YYYY-MM-DDTHH:mm:ss)
+                    try:
+                        event_datetime = datetime.fromisoformat(event_date)
+                        # Ensure it's naive
+                        if event_datetime.tzinfo is not None:
+                            event_datetime = event_datetime.replace(tzinfo=None)
+                    except ValueError:
+                        # Fallback to strptime
+                        event_datetime = datetime.strptime(event_date, "%Y-%m-%dT%H:%M:%S")
             else:
                 # Date only, assume 9:00 AM
                 event_datetime = datetime.strptime(event_date, "%Y-%m-%d")
                 event_datetime = event_datetime.replace(hour=9, minute=0, second=0)
         else:
             event_datetime = event_date
+            # Convert to naive if timezone-aware
+            if event_datetime.tzinfo is not None:
+                event_datetime = event_datetime.replace(tzinfo=None)
     except ValueError as e:
         raise ValueError(f"Invalid date format. Use YYYY-MM-DD or ISO format: {e}")
     
     # Check if event is in the future
-    if event_datetime <= datetime.now():
+    # Use UTC for comparison to avoid timezone issues
+    # The frontend sends UTC time, so we compare with UTC now
+    from datetime import timezone
+    utc_now = datetime.now(timezone.utc).replace(tzinfo=None)  # Convert to naive UTC
+    if event_datetime <= utc_now:
         raise ValueError("Event date must be in the future")
     
     # Create event object
@@ -254,6 +284,77 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
         print(f"Failed to remove attendee: {e}")
         raise RuntimeError(f"Failed to remove attendee: {e}")
 
+def delete_hiking_event_by_id(event_id: str) -> bool:
+    """
+    Delete an event by ID without checking organizer permissions.
+    Used for automatic cleanup of expired events.
+    
+    Args:
+        event_id: ID of the event to delete
+    
+    Returns:
+        True if deleted, False if not found
+    """
+    try:
+        event_ref = db.collection("hiking_events").document(event_id)
+        event_doc = event_ref.get()
+        
+        if not event_doc.exists:
+            return False
+        
+        event_ref.delete()
+        print(f"Automatically deleted expired event {event_id}")
+        return True
+    except Exception as e:
+        print(f"Error deleting event {event_id}: {e}")
+        return False
+
+def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
+    """
+    Deletes a hiking event. Only the organizer can delete their event.
+    
+    Args:
+        event_id: ID of the hiking event to delete
+        organizer_uid: UID of the user attempting to delete (must be the organizer)
+    
+    Returns:
+        Dict with success status
+    """
+    print(f"\nDeleting event {event_id} by organizer {organizer_uid}")
+    
+    try:
+        # Get event document
+        event_ref = db.collection("hiking_events").document(event_id)
+        event_doc = event_ref.get()
+        
+        if not event_doc.exists:
+            raise ValueError(f"Event {event_id} not found")
+        
+        event_data = event_doc.to_dict()
+        event_organizer = event_data.get("organizer_uid", "")
+        
+        # Check if user is the organizer
+        if event_organizer != organizer_uid:
+            raise ValueError("Only the event organizer can delete this event")
+        
+        # Delete the event document
+        event_ref.delete()
+        
+        print(f"Successfully deleted event {event_id}")
+        
+        return {
+            "success": True,
+            "event_id": event_id,
+            "message": "Event deleted successfully",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        print(f"Failed to delete event: {e}")
+        raise RuntimeError(f"Failed to delete event: {e}")
+
 def get_event_details(event_id: str) -> Optional[Dict]:
     """
     Retrieves detailed information about a hiking event.
@@ -371,7 +472,9 @@ def interactive_event_manager():
         print("4. View event details")
         print("5. List all events")
         print("6. Find events by location")
-        print("7. Exit")
+        print("7. Delete event")
+        print("8. Cleanup expired events")
+        print("9. Exit")
         
         choice = input("\nEnter your choice (1-7): ").strip()
         
@@ -471,13 +574,77 @@ def interactive_event_manager():
                     print("-" * 40)
             else:
                 print(f"\nNo events found at {location}")
-                
+
         elif choice == "7":
-            print("\nGoodbye!")
-            break
+            print("\nDELETE EVENT")
+            print("-" * 30)
+            event_id = input("Event ID: ").strip()
+            organizer_uid = input("Organizer UID: ").strip()
+            result = delete_hiking_event(event_id, organizer_uid)
+            print(f"\nSUCCESS: {json.dumps(result, indent=2)}")
+        
+        elif choice == "8":
+            print("\nCLEANUP EXPIRED EVENTS")
+            print("-" * 30)
+            cleanup_expired_events()
             
         else:
             print("\nInvalid choice. Please try again.")
+
+def cleanup_expired_events() -> int:
+    """
+    Delete events that started more than 1 hour ago.
+    This function is called periodically by the scheduler.
+    
+    Returns:
+        Number of events deleted
+    """
+    try:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        one_hour_ago = now - timedelta(hours=1)
+        
+        # Query events where event_date is less than one hour ago
+        events_ref = db.collection("hiking_events")
+        
+        # Get all events (we'll filter in Python since Firestore datetime queries can be tricky)
+        all_events = events_ref.stream()
+        
+        deleted_count = 0
+        for event_doc in all_events:
+            event_data = event_doc.to_dict()
+            event_date = event_data.get("event_date")
+            
+            if event_date:
+                # Handle Firestore Timestamp
+                if hasattr(event_date, 'timestamp'):
+                    event_datetime = datetime.fromtimestamp(event_date.timestamp())
+                elif isinstance(event_date, datetime):
+                    event_datetime = event_date
+                    # Remove timezone if present
+                    if event_datetime.tzinfo is not None:
+                        event_datetime = event_datetime.replace(tzinfo=None)
+                elif isinstance(event_date, str):
+                    try:
+                        event_datetime = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+                        if event_datetime.tzinfo is not None:
+                            event_datetime = event_datetime.replace(tzinfo=None)
+                    except:
+                        continue
+                else:
+                    continue
+                
+                # Check if event started more than 1 hour ago
+                if event_datetime < one_hour_ago:
+                    if delete_hiking_event_by_id(event_doc.id):
+                        deleted_count += 1
+        
+        if deleted_count > 0:
+            print(f"Cleanup: Deleted {deleted_count} expired event(s)")
+        
+        return deleted_count
+    except Exception as e:
+        print(f"Error during event cleanup: {e}")
+        return 0
 
 if __name__ == "__main__":
     print("Starting TrailMix Hiking Event Management System")

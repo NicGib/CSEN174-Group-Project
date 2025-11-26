@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -20,16 +21,29 @@ import {
   PotentialMatch,
   MutualMatch,
 } from '@/src/lib/matchingService';
+import { getConversations, Conversation } from '@/src/lib/messagingService';
 import { auth } from '@/src/lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CACHE_KEY = 'potential_matches_cache';
-const CACHE_EXPIRY = 30 * 1000; // 30 seconds (reduced for faster updates)
+const MUTUAL_MATCHES_CACHE_KEY = 'mutual_matches_cache';
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes (longer cache for better UX)
 
 interface CachedMatches {
   matches: PotentialMatch[];
   timestamp: number;
+}
+
+interface CachedMutualMatches {
+  matches: MutualMatch[];
+  timestamp: number;
+}
+
+interface EnhancedMatch extends MutualMatch {
+  hasUnreadMessages?: boolean;
+  lastMessageTime?: string;
+  hasNeverMessaged?: boolean;
 }
 
 type ViewMode = 'discover' | 'matches';
@@ -39,15 +53,19 @@ export default function MatchScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('discover');
   const [matches, setMatches] = useState<PotentialMatch[]>([]);
   const [mutualMatches, setMutualMatches] = useState<MutualMatch[]>([]);
+  const [enhancedMatches, setEnhancedMatches] = useState<EnhancedMatch[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadingMutualMatches, setLoadingMutualMatches] = useState(false);
 
   const loadMatches = useCallback(async (useCache: boolean = true, skipCache: boolean = false) => {
+    let hasCachedData = false;
+    
     try {
-      setLoading(true);
-
-      // Try to load from cache first (unless skipCache is true)
+      // Try to load from cache first and show immediately (unless skipCache is true)
       if (useCache && !skipCache) {
         try {
           const cached = await AsyncStorage.getItem(CACHE_KEY);
@@ -55,77 +73,239 @@ export default function MatchScreen() {
             const cachedData: CachedMatches = JSON.parse(cached);
             const now = Date.now();
             if (now - cachedData.timestamp < CACHE_EXPIRY && cachedData.matches.length > 0) {
+              // Show cached data immediately
               setMatches(cachedData.matches);
               setCurrentIndex(0);
               setLoading(false);
-              return;
+              hasCachedData = true;
+              // Continue to fetch fresh data in background
+            } else {
+              // Cache expired, need to fetch
+              setLoading(true);
             }
+          } else {
+            setLoading(true);
           }
         } catch (e) {
           console.log('Cache read error:', e);
+          setLoading(true);
         }
+      } else {
+        setLoading(true);
       }
 
-      // Fetch from API
-      const data = await getPotentialMatches(50, true);
-      setMatches(data.matches);
-      setCurrentIndex(0);
-
-      // Cache the results
+      // Fetch fresh data from API (in background if cache was shown)
       try {
-        const cacheData: CachedMatches = {
-          matches: data.matches,
-          timestamp: Date.now(),
-        };
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-      } catch (e) {
-        console.log('Cache write error:', e);
+        const data = await getPotentialMatches(50, true);
+        setMatches(data.matches);
+        setCurrentIndex(0);
+
+        // Cache the results
+        try {
+          const cacheData: CachedMatches = {
+            matches: data.matches,
+            timestamp: Date.now(),
+          };
+          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        } catch (e) {
+          console.log('Cache write error:', e);
+        }
+      } catch (error: any) {
+        console.error('Error loading matches:', error);
+        // Only show error if we don't have cached data
+        if (!hasCachedData) {
+          Alert.alert('Error', error.message || 'Failed to load matches');
+        }
+      } finally {
+        setLoading(false);
       }
     } catch (error: any) {
       console.error('Error loading matches:', error);
-      Alert.alert('Error', error.message || 'Failed to load matches');
-    } finally {
+      if (!hasCachedData) {
+        Alert.alert('Error', error.message || 'Failed to load matches');
+      }
       setLoading(false);
     }
   }, []);
 
-  // Load matches when component mounts
+  // Load matches when component mounts - show cache immediately
   useEffect(() => {
-    loadMatches();
-  }, [loadMatches]);
+    loadMatches(true, false); // Use cache, don't skip
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const loadMutualMatches = useCallback(async () => {
+  // Load conversations and enhance matches with message info
+  const loadConversationsAndEnhanceMatches = useCallback(async (matches: MutualMatch[]) => {
+    const user = auth.currentUser;
+    if (!user) return matches;
+
     try {
-      setLoading(true);
-      const matches = await getMutualMatches();
-      setMutualMatches(matches);
+      // Load conversations
+      const convs = await getConversations(user.uid);
+      setConversations(convs);
+
+      // Create a map of conversations by other_user_uid
+      const conversationMap = new Map<string, Conversation>();
+      convs.forEach(conv => {
+        conversationMap.set(conv.other_user_uid, conv);
+      });
+
+      // Enhance matches with conversation info
+      const enhanced: EnhancedMatch[] = matches.map(match => {
+        const conversation = conversationMap.get(match.uid);
+        const hasConversation = !!conversation;
+        const lastMessage = conversation?.last_message;
+        
+        // Check if there are unread messages (last message was sent by the other user)
+        const hasUnread = hasConversation && lastMessage && lastMessage.sender_uid === match.uid;
+        
+        return {
+          ...match,
+          hasUnreadMessages: hasUnread,
+          lastMessageTime: lastMessage?.created_at,
+          hasNeverMessaged: !hasConversation,
+        };
+      });
+
+      // Sort matches:
+      // 1. Unread messages first (by most recent message)
+      // 2. Never messaged (by match date)
+      // 3. Messaged (by most recent message)
+      enhanced.sort((a, b) => {
+        // Priority 1: Unread messages first
+        if (a.hasUnreadMessages && !b.hasUnreadMessages) return -1;
+        if (!a.hasUnreadMessages && b.hasUnreadMessages) return 1;
+        
+        // If both have unread, sort by most recent message
+        if (a.hasUnreadMessages && b.hasUnreadMessages) {
+          const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return bTime - aTime;
+        }
+        
+        // Priority 2: Never messaged (only if neither has unread)
+        if (a.hasNeverMessaged && !b.hasNeverMessaged) return -1;
+        if (!a.hasNeverMessaged && b.hasNeverMessaged) return 1;
+        
+        // If both never messaged, sort by match date
+        if (a.hasNeverMessaged && b.hasNeverMessaged) {
+          return new Date(b.matchedAt).getTime() - new Date(a.matchedAt).getTime();
+        }
+        
+        // Priority 3: Both have messaged (sort by most recent message)
+        const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : new Date(a.matchedAt).getTime();
+        const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : new Date(b.matchedAt).getTime();
+        return bTime - aTime;
+      });
+
+      setEnhancedMatches(enhanced);
+    } catch (error: any) {
+      console.error('Error loading conversations:', error);
+      // If conversations fail, just use matches as-is
+      setEnhancedMatches(matches.map(m => ({ ...m, hasNeverMessaged: true })));
+    }
+  }, []);
+
+  const loadMutualMatches = useCallback(async (useCache: boolean = true) => {
+    let hasCachedData = false;
+    
+    try {
+      // Try to load from cache first and show immediately
+      if (useCache) {
+        try {
+          const cached = await AsyncStorage.getItem(MUTUAL_MATCHES_CACHE_KEY);
+          if (cached) {
+            const cachedData: CachedMutualMatches = JSON.parse(cached);
+            // Always show cached data if available (even if expired), then refresh in background
+            if (cachedData.matches.length > 0) {
+              // Show cached data immediately
+              setMutualMatches(cachedData.matches);
+              await loadConversationsAndEnhanceMatches(cachedData.matches);
+              setLoadingMutualMatches(false);
+              hasCachedData = true;
+              // Always fetch fresh data in background (regardless of expiry)
+            } else {
+              setLoadingMutualMatches(true);
+            }
+          } else {
+            setLoadingMutualMatches(true);
+          }
+        } catch (e) {
+          console.log('Cache read error:', e);
+          setLoadingMutualMatches(true);
+        }
+      } else {
+        setLoadingMutualMatches(true);
+      }
+
+      // Fetch fresh data from API (in background if cache was shown)
+      try {
+        const matches = await getMutualMatches();
+        setMutualMatches(matches);
+        await loadConversationsAndEnhanceMatches(matches);
+        
+        // Cache the results
+        try {
+          const cacheData: CachedMutualMatches = {
+            matches: matches,
+            timestamp: Date.now(),
+          };
+          await AsyncStorage.setItem(MUTUAL_MATCHES_CACHE_KEY, JSON.stringify(cacheData));
+        } catch (e) {
+          console.log('Cache write error:', e);
+        }
+      } catch (error: any) {
+        console.error('Error loading mutual matches:', error);
+        // Only show error if we don't have cached data
+        if (!hasCachedData) {
+          Alert.alert('Error', error.message || 'Failed to load matches');
+        }
+      } finally {
+        setLoadingMutualMatches(false);
+      }
     } catch (error: any) {
       console.error('Error loading mutual matches:', error);
-      Alert.alert('Error', error.message || 'Failed to load matches');
-    } finally {
-      setLoading(false);
+      if (!hasCachedData) {
+        Alert.alert('Error', error.message || 'Failed to load matches');
+      }
+      setLoadingMutualMatches(false);
     }
-  }, []);
+  }, [loadConversationsAndEnhanceMatches]);
 
   // Reload matches when tab comes into focus (user switches to this tab)
   useFocusEffect(
     useCallback(() => {
       if (viewMode === 'discover') {
-        // Skip cache when tab is focused to get fresh data
-        // This ensures updated interests are reflected immediately
-        loadMatches(true, true); // useCache=true but skipCache=true means fetch fresh
+        // Show cache immediately, fetch fresh in background
+        loadMatches(true, false);
       } else {
-        loadMutualMatches();
+        // Show cache immediately, fetch fresh in background
+        loadMutualMatches(true);
       }
     }, [loadMatches, loadMutualMatches, viewMode])
   );
 
-  // Load mutual matches when switching to matches view
+  // Load mutual matches when switching to matches view - show cache immediately but always refresh
   useEffect(() => {
     if (viewMode === 'matches') {
-      loadMutualMatches();
+      // Show cache immediately, but always fetch fresh data in background
+      loadMutualMatches(true); // Use cache for immediate display, but always refresh in background
     }
   }, [viewMode, loadMutualMatches]);
+
+  // Filter mutual matches based on search query (use enhanced matches for sorting)
+  const filteredMutualMatches = useMemo(() => {
+    const matchesToFilter = enhancedMatches.length > 0 ? enhancedMatches : mutualMatches;
+    if (!searchQuery.trim()) {
+      return matchesToFilter;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return matchesToFilter.filter((match) => {
+      const name = (match.name || '').toLowerCase();
+      const username = (match.username || '').toLowerCase();
+      return name.includes(query) || username.includes(query);
+    });
+  }, [enhancedMatches, mutualMatches, searchQuery]);
 
   const handleSwipeLeft = useCallback(async () => {
     if (swiping || currentIndex >= matches.length) return;
@@ -161,9 +341,16 @@ export default function MatchScreen() {
 
       if (result.isMatch) {
         Alert.alert('🎉 It\'s a Match!', `You and ${currentMatch.name || currentMatch.username} liked each other!`);
+        // Refresh mutual matches cache when a new match is made
+        // Clear cache to force refresh on next load
+        try {
+          await AsyncStorage.removeItem(MUTUAL_MATCHES_CACHE_KEY);
+        } catch (e) {
+          console.log('Error clearing mutual matches cache:', e);
+        }
         // Refresh mutual matches if we're in matches view
         if (viewMode === 'matches') {
-          loadMutualMatches();
+          loadMutualMatches(false); // Force refresh
         }
       }
 
@@ -177,7 +364,7 @@ export default function MatchScreen() {
     } finally {
       setSwiping(false);
     }
-  }, [currentIndex, matches, swiping, loadMatches]);
+  }, [currentIndex, matches, swiping, loadMatches, viewMode, loadMutualMatches]);
 
   const handleManualPass = useCallback(() => {
     handleSwipeLeft();
@@ -232,65 +419,116 @@ export default function MatchScreen() {
           </Text>
         </View>
 
-        {loading ? (
+        {/* Search bar */}
+        {mutualMatches.length > 0 && (
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search matches by name or username..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        )}
+
+        {loadingMutualMatches && mutualMatches.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.loadingText}>Loading matches...</Text>
           </View>
-        ) : mutualMatches.length === 0 ? (
+        ) : filteredMutualMatches.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No matches yet</Text>
-            <Text style={styles.emptyText}>
-              Start swiping to find your hiking buddies!
-            </Text>
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={() => setViewMode('discover')}
-            >
-              <Text style={styles.refreshButtonText}>Start Discovering</Text>
-            </TouchableOpacity>
+            {searchQuery.trim() ? (
+              <>
+                <Text style={styles.emptyTitle}>No matches found</Text>
+                <Text style={styles.emptyText}>
+                  No matches match "{searchQuery}"
+                </Text>
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={() => setSearchQuery('')}
+                >
+                  <Text style={styles.refreshButtonText}>Clear Search</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>No matches yet</Text>
+                <Text style={styles.emptyText}>
+                  Start swiping to find your hiking buddies!
+                </Text>
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={() => setViewMode('discover')}
+                >
+                  <Text style={styles.refreshButtonText}>Start Discovering</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         ) : (
           <ScrollView 
             style={styles.matchesListContainer}
             contentContainerStyle={styles.matchesListContent}
           >
-            {mutualMatches.map((match) => (
-              <TouchableOpacity
-                key={match.uid}
-                style={styles.matchCard}
-                onPress={() => {
-                  // Store current route before navigating to messages
-                  const currentRoute = '/(tabs)/match';
-                  pushRoute(currentRoute);
-                  router.push(`/(tabs)/message/${match.uid}` as any);
-                }}
-              >
-                <View style={styles.matchCardContent}>
-                  <View style={styles.matchAvatar}>
-                    {match.profilePicture ? (
-                      <Text style={styles.matchAvatarText}>📷</Text>
-                    ) : (
-                      <Text style={styles.matchAvatarText}>
-                        {(match.name || match.username || '?')[0].toUpperCase()}
+            {loadingMutualMatches && mutualMatches.length > 0 && (
+              <View style={styles.refreshingIndicator}>
+                <ActivityIndicator size="small" color="#4CAF50" />
+                <Text style={styles.refreshingText}>Refreshing...</Text>
+              </View>
+            )}
+            {filteredMutualMatches.map((match) => {
+              const enhancedMatch = match as EnhancedMatch;
+              return (
+                <TouchableOpacity
+                  key={match.uid}
+                  style={styles.matchCard}
+                  onPress={() => {
+                    // Store current route before navigating to messages
+                    const currentRoute = '/(tabs)/match';
+                    pushRoute(currentRoute);
+                    router.push(`/(tabs)/message/${match.uid}` as any);
+                  }}
+                >
+                  <View style={styles.matchCardContent}>
+                    <View style={styles.matchAvatarContainer}>
+                      <View style={styles.matchAvatar}>
+                        {match.profilePicture ? (
+                          <Text style={styles.matchAvatarText}>📷</Text>
+                        ) : (
+                          <Text style={styles.matchAvatarText}>
+                            {(match.name || match.username || '?')[0].toUpperCase()}
+                          </Text>
+                        )}
+                      </View>
+                      {enhancedMatch.hasUnreadMessages && (
+                        <View style={styles.unreadBadge} />
+                      )}
+                    </View>
+                    <View style={styles.matchInfo}>
+                      <View style={styles.matchNameRow}>
+                        <Text style={styles.matchName}>
+                          {match.name || match.username || 'Unknown User'}
+                        </Text>
+                        {enhancedMatch.hasUnreadMessages && (
+                          <View style={styles.unreadIndicator}>
+                            <Text style={styles.unreadIndicatorText}>●</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.matchUsername}>
+                        @{match.username || 'user'}
                       </Text>
-                    )}
+                      <Text style={styles.matchDate}>
+                        Matched {formatDate(match.matchedAt)}
+                      </Text>
+                    </View>
+                    <Text style={styles.arrowText}>→</Text>
                   </View>
-                  <View style={styles.matchInfo}>
-                    <Text style={styles.matchName}>
-                      {match.name || match.username || 'Unknown User'}
-                    </Text>
-                    <Text style={styles.matchUsername}>
-                      @{match.username || 'user'}
-                    </Text>
-                    <Text style={styles.matchDate}>
-                      Matched {formatDate(match.matchedAt)}
-                    </Text>
-                  </View>
-                  <Text style={styles.arrowText}>→</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         )}
       </View>
@@ -332,7 +570,53 @@ export default function MatchScreen() {
     );
   }
 
-  // Discover view - no more matches
+  // Discover view - no matches at all
+  if (!loading && matches.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerTitle}>Discover</Text>
+            <View style={styles.viewModeToggle}>
+              <TouchableOpacity
+                style={[styles.toggleButton, styles.toggleButtonActive]}
+                onPress={() => setViewMode('discover')}
+              >
+                <Text style={[styles.toggleButtonText, styles.toggleButtonTextActive]}>
+                  Discover
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.toggleButton}
+                onPress={() => setViewMode('matches')}
+              >
+                <Text style={styles.toggleButtonText}>
+                  Matches {mutualMatches.length > 0 && `(${mutualMatches.length})`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <Text style={styles.headerSubtitle}>
+            No matches available
+          </Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>No matches found</Text>
+          <Text style={styles.emptyText}>
+            Check back later for more potential matches!
+          </Text>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={() => loadMatches(false)}
+          >
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Discover view - no more matches (went through all of them)
   if (currentIndex >= matches.length && matches.length > 0) {
     return (
       <View style={styles.container}>
@@ -511,6 +795,31 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  searchContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  searchInput: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  refreshingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  refreshingText: {
+    fontSize: 14,
+    color: '#666',
+  },
   viewModeToggle: {
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
@@ -555,6 +864,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  matchAvatarContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
   matchAvatar: {
     width: 60,
     height: 60,
@@ -562,21 +875,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   matchAvatarText: {
     fontSize: 24,
     color: '#fff',
     fontWeight: 'bold',
   },
+  unreadBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
   matchInfo: {
     flex: 1,
+  },
+  matchNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   matchName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+  },
+  unreadIndicator: {
+    marginLeft: 8,
+  },
+  unreadIndicatorText: {
+    fontSize: 12,
+    color: '#FF3B30',
   },
   matchUsername: {
     fontSize: 14,

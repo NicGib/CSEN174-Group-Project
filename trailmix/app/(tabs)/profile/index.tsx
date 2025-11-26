@@ -9,11 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Image,
 } from 'react-native';
 import { auth } from '@/src/lib/firebase';
 import { getUserProfile, updateUserProfile, UserProfile } from '@/src/lib/userService';
 import { Timestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { pickImageFromLibrary, takePhoto, uploadProfilePicture } from '@/src/utils/imageUpload';
 
 const HIKING_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const;
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const;
@@ -34,6 +36,8 @@ export default function ProfileScreen() {
   const [interests, setInterests] = useState<string[]>([]);
   const [newInterest, setNewInterest] = useState('');
   const [birthday, setBirthday] = useState<string>('');
+  const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -55,6 +59,7 @@ export default function ProfileScreen() {
         setGender(userProfile.gender || '');
         setHikingLevel(userProfile.hikingLevel || '');
         setInterests(userProfile.interests || []);
+        setProfilePictureUri(userProfile.profilePicture || null);
         
         // Handle birthday - convert from Timestamp to date string if needed
         if (userProfile.birthday) {
@@ -90,6 +95,40 @@ export default function ProfileScreen() {
     setInterests(interests.filter(i => i !== interest));
   };
 
+  const handleSelectPhoto = async () => {
+    Alert.alert(
+      'Select Photo',
+      'Choose an option',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: handleTakePhoto },
+        { text: 'Choose from Library', onPress: handlePickFromLibrary },
+      ]
+    );
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const uri = await takePhoto();
+      if (uri) {
+        setProfilePictureUri(uri);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to take photo');
+    }
+  };
+
+  const handlePickFromLibrary = async () => {
+    try {
+      const uri = await pickImageFromLibrary();
+      if (uri) {
+        setProfilePictureUri(uri);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to pick image from library');
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -109,6 +148,21 @@ export default function ProfileScreen() {
         return;
       }
 
+      // Upload profile picture if a new one was selected
+      let profilePictureUrl = profile?.profilePicture;
+      if (profilePictureUri && profilePictureUri !== profile?.profilePicture) {
+        try {
+          setUploadingImage(true);
+          profilePictureUrl = await uploadProfilePicture(profilePictureUri, user.uid);
+        } catch (error: any) {
+          Alert.alert('Error', error.message || 'Failed to upload profile picture');
+          setUploadingImage(false);
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
       // Prepare updates
       const updates: Partial<UserProfile> = {
         name: name.trim(),
@@ -119,6 +173,7 @@ export default function ProfileScreen() {
         gender: gender || undefined,
         hikingLevel: hikingLevel as any || undefined,
         interests: interests.length > 0 ? interests : undefined,
+        profilePicture: profilePictureUrl || undefined,
       };
 
       // Handle birthday
@@ -173,6 +228,58 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.form}>
+        {/* Profile Picture */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.label}>Profile Picture</Text>
+          <View style={styles.profilePictureContainer}>
+            <View style={styles.profilePictureWrapper}>
+              {profilePictureUri ? (
+                <Image 
+                  source={{ uri: profilePictureUri }} 
+                  style={styles.profilePicture}
+                  onError={(error) => {
+                    console.error('Error loading profile picture:', error.nativeEvent.error);
+                    console.error('Failed URL:', profilePictureUri);
+                  }}
+                  onLoad={() => {
+                    console.log('Profile picture loaded successfully:', profilePictureUri);
+                  }}
+                />
+              ) : (
+                <View style={styles.profilePicturePlaceholder}>
+                  <Text style={styles.profilePicturePlaceholderText}>
+                    {(name || username || '?')[0].toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.profilePictureButtons}>
+              <TouchableOpacity
+                style={styles.profilePictureButton}
+                onPress={handleSelectPhoto}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                ) : (
+                  <Text style={styles.profilePictureButtonText}>Change Photo</Text>
+                )}
+              </TouchableOpacity>
+              {profilePictureUri && (
+                <TouchableOpacity
+                  style={[styles.profilePictureButton, styles.removePhotoButton]}
+                  onPress={() => setProfilePictureUri(null)}
+                  disabled={uploadingImage}
+                >
+                  <Text style={[styles.profilePictureButtonText, styles.removePhotoButtonText]}>
+                    Remove
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+
         {/* Name */}
         <View style={styles.fieldContainer}>
           <Text style={styles.label}>Name *</Text>
@@ -571,6 +678,57 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  profilePictureContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profilePictureWrapper: {
+    marginBottom: 16,
+  },
+  profilePicture: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#E0E0E0',
+  },
+  profilePicturePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profilePicturePlaceholderText: {
+    fontSize: 48,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  profilePictureButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  profilePictureButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#4CAF50',
+    borderRadius: 20,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  profilePictureButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removePhotoButton: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  removePhotoButtonText: {
+    color: '#666',
   },
 });
 

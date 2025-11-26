@@ -76,4 +76,4 @@ echo ""
 echo "Starting Expo with tunnel mode..."
 echo "API will use cloudflared tunnel: ${EXPO_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}"
 echo ""
-exec npx expo start --tunnel --clear
+exec npx expo start --tunnel

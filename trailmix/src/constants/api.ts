@@ -38,6 +38,7 @@ export const getEndpoints = () => {
     auth: `${baseUrl}/auth`,
     matching: `${baseUrl}/matching`,
     messaging: `${baseUrl}/messaging`,
+    uploads: `${baseUrl}/uploads`,
   };
 };
 
@@ -49,6 +50,7 @@ export const endpoints = {
   get auth() { return `${getApiBaseUrl()}/auth`; },
   get matching() { return `${getApiBaseUrl()}/matching`; },
   get messaging() { return `${getApiBaseUrl()}/messaging`; },
+  get uploads() { return `${getApiBaseUrl()}/uploads`; },
 };
 
 // Get WebSocket URL (convert http/https to ws/wss)
