@@ -37,26 +37,31 @@ export const theme = {
     typography: {
         heading: {
             h1: {
+                fontFamily: 'InterExtraBold',
                 fontSize: 24,
                 fontWeight: '800' as const, // "Extra bold"
                 lineHeight: 28,
             },
             h2: {
+                fontFamily: 'InterExtraBold',
                 fontSize: 18,
                 fontWeight: '800' as const,
                 lineHeight: 22,
             },
             h3: {
+                fontFamily: 'InterExtraBold',
                 fontSize: 16,
                 fontWeight: '800' as const,
                 lineHeight: 20,
             },
             h4: {
+                fontFamily: 'InterBold',
                 fontSize: 14,
                 fontWeight: '700' as const, // "Bold"
                 lineHeight: 18,
             },
             h5: {
+                fontFamily: 'InterBold',
                 fontSize: 12,
                 fontWeight: '700' as const,
                 lineHeight: 16,
@@ -65,26 +70,31 @@ export const theme = {
 
         body: {
             xl: {
+                fontFamily: 'Inter',
                 fontSize: 18,
                 fontWeight: '400' as const, // "Regular"
                 lineHeight: 24,
             },
             l: {
+                fontFamily: 'Inter',
                 fontSize: 16,
                 fontWeight: '400' as const,
                 lineHeight: 22,
             },
             m: {
+                fontFamily: 'Inter',
                 fontSize: 14,
                 fontWeight: '400' as const,
                 lineHeight: 18,
             },
             s: {
+                fontFamily: 'Inter',
                 fontSize: 12,
                 fontWeight: '400' as const,
                 lineHeight: 16,
             },
             xs: {
+                fontFamily: 'Inter',
                 fontSize: 10,
                 fontWeight: '500' as const, // "Medium"
                 lineHeight: 12,
@@ -93,18 +103,21 @@ export const theme = {
 
         action: {
             l: {
+                fontFamily: 'InterSemiBold',
                 fontSize: 14,
                 fontWeight: '600' as const, // "Semi Bold"
                 lineHeight: 16,
                 textTransform: 'uppercase',
             },
             m: {
+                fontFamily: 'InterSemiBold',
                 fontSize: 12,
                 fontWeight: '600' as const,
                 lineHeight: 14,
                 textTransform: 'uppercase',
             },
             s: {
+                fontFamily: 'InterSemiBold',
                 fontSize: 10,
                 fontWeight: '600' as const,
                 lineHeight: 12,
@@ -114,6 +127,7 @@ export const theme = {
 
         caption: {
             m: {
+                fontFamily: 'InterSemiBold',
                 fontSize: 10,
                 fontWeight: '600' as const, // Semi Bold
                 lineHeight: 12,
@@ -133,7 +147,7 @@ export const theme = {
     title: {
         fontSize: 48,
         fontWeight: '800',
-        color: 'theme.colors.secondary.light',
+        color: '#FCFAE1',
         marginBottom: 8,
     },
     subtitle: {

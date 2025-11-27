@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { View, ActivityIndicator } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { useFonts } from "expo-font";
+
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
@@ -33,11 +35,11 @@ function RootLayoutNav() {
 
   if (loading) {
     return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      // <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" />
         </View>
-      </GestureHandlerRootView>
+      // </GestureHandlerRootView>
     );
   }
 
@@ -57,6 +59,24 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  //loading fonts
+  const [loaded] = useFonts({
+    Inter: require('../assets/fonts/Inter_18pt-Regular.ttf'),
+    InterSemiBold: require('../assets/fonts/Inter_18pt-SemiBold.ttf'),
+    InterBold: require('../assets/fonts/Inter_18pt-Bold.ttf'),
+    InterExtraBold: require('../assets/fonts/Inter_18pt-ExtraBold.ttf'),
+  });
+
+  if (!loaded) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" />
+        </View>
+      </GestureHandlerRootView>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <RootLayoutNav />
