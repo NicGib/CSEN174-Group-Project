@@ -1,5 +1,6 @@
 import { endpoints } from '../constants/api';
 import { auth } from './firebase';
+import { apiCall, ApiError, ErrorType, getUserFriendlyErrorMessage } from '@/src/utils/errorHandler';
 
 export interface PotentialMatch {
   uid: string;
@@ -40,31 +41,16 @@ export const getPotentialMatches = async (
   }
 
   try {
-    const response = await fetch(
-      `${endpoints.matching}/potential-matches/${user.uid}?limit=${limit}&exclude_swiped=${excludeSwiped}`
+    return await apiCall<{ matches: PotentialMatch[]; hasMore: boolean }>(
+      `${endpoints.matching}/potential-matches/${user.uid}?limit=${limit}&exclude_swiped=${excludeSwiped}`,
+      { method: 'GET' },
+      'Failed to get potential matches'
     );
-
-    if (!response.ok) {
-      const errorText = response.statusText || `HTTP ${response.status}`;
-      let errorMessage = `Failed to get potential matches: ${errorText}`;
-      try {
-        const errorData = await response.json();
-        if (errorData.detail) {
-          errorMessage = `Failed to get potential matches: ${errorData.detail}`;
-        }
-      } catch {
-        // If JSON parsing fails, use the status text
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    return data;
   } catch (error: any) {
     console.error('Error getting potential matches:', error);
-    // Provide a more helpful error message
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Failed to get potential matches: Network error - check if the API server is running');
+    // Re-throw with user-friendly message
+    if (error instanceof ApiError) {
+      throw new Error(getUserFriendlyErrorMessage(error));
     }
     throw error instanceof Error ? error : new Error('Failed to get potential matches: Unknown error');
   }
@@ -83,29 +69,31 @@ export const swipe = async (
   }
 
   try {
-    const response = await fetch(`${endpoints.matching}/swipe/${user.uid}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const data = await apiCall<any>(
+      `${endpoints.matching}/swipe/${user.uid}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetUid,
+          action,
+        }),
       },
-      body: JSON.stringify({
-        targetUid,
-        action,
-      }),
-    });
+      'Failed to record swipe'
+    );
 
-    if (!response.ok) {
-      throw new Error(`Failed to record swipe: ${response.statusText}`);
-    }
-
-    const data = await response.json();
     return {
       success: data.success,
       isMatch: data.is_match,
       message: data.message,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error recording swipe:', error);
+    if (error instanceof ApiError) {
+      throw new Error(getUserFriendlyErrorMessage(error));
+    }
     throw error;
   }
 };
@@ -120,13 +108,12 @@ export const getMutualMatches = async (): Promise<MutualMatch[]> => {
   }
 
   try {
-    const response = await fetch(`${endpoints.matching}/mutual-matches/${user.uid}`);
+    const data = await apiCall<{ matches: any[] }>(
+      `${endpoints.matching}/mutual-matches/${user.uid}`,
+      { method: 'GET' },
+      'Failed to get mutual matches'
+    );
 
-    if (!response.ok) {
-      throw new Error(`Failed to get matches: ${response.statusText}`);
-    }
-
-    const data = await response.json();
     return data.matches.map((match: any) => ({
       uid: match.uid,
       name: match.name,
@@ -134,8 +121,11 @@ export const getMutualMatches = async (): Promise<MutualMatch[]> => {
       profilePicture: match.profile_picture,
       matchedAt: match.matched_at,
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting mutual matches:', error);
+    if (error instanceof ApiError) {
+      throw new Error(getUserFriendlyErrorMessage(error));
+    }
     throw error;
   }
 };

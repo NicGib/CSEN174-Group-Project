@@ -15,7 +15,7 @@ import { auth } from '@/src/lib/firebase';
 import { getUserProfile, updateUserProfile, UserProfile } from '@/src/lib/userService';
 import { Timestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { pickImageFromLibrary, takePhoto, uploadProfilePicture } from '@/src/utils/imageUpload';
+import { pickImageFromLibrary, takePhoto, uploadProfilePicture, normalizeProfilePictureUrl } from '@/src/utils/imageUpload';
 
 const HIKING_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const;
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const;
@@ -59,7 +59,8 @@ export default function ProfileScreen() {
         setGender(userProfile.gender || '');
         setHikingLevel(userProfile.hikingLevel || '');
         setInterests(userProfile.interests || []);
-        setProfilePictureUri(userProfile.profilePicture || null);
+        // Normalize profile picture URL to use current API base URL (in case it has old tunnel URL)
+        setProfilePictureUri(normalizeProfilePictureUrl(userProfile.profilePicture));
         
         // Handle birthday - convert from Timestamp to date string if needed
         if (userProfile.birthday) {
