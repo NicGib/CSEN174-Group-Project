@@ -89,6 +89,28 @@ services:
         max-file: "3"
     # Logs will contain the tunnel URL - we'll extract it via docker logs
 
+  tunnel-url-extractor:
+    image: python:3.11-alpine
+    container_name: trailmix-tunnel-url-extractor
+    volumes:
+      # Mount workspace root to write .tunnel-url files
+      - .:/workspace
+      # Mount Docker socket to read cloudflared logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    working_dir: /workspace
+    command: >
+      sh -c "
+        apk add --no-cache docker-cli &&
+        python3 extract-tunnel-url.py
+      "
+    depends_on:
+      cloudflared:
+        condition: service_started
+    restart: on-failure
+    networks:
+      - trailmix-network
+    # This service extracts the URL when cloudflared starts
+
   frontend:
     build:
       context: ./trailmix
@@ -109,11 +131,17 @@ services:
       # Force unbuffered output for better QR code visibility
       - PYTHONUNBUFFERED=1
       - NODE_ENV=development
+      # Force color output and ensure proper terminal handling
+      - FORCE_COLOR=1
+      - TERM=xterm-256color
+      - CI=false
     depends_on:
       backend:
         condition: service_healthy
       cloudflared:
         condition: service_started
+      tunnel-url-extractor:
+        condition: service_completed_successfully
     restart: unless-stopped
     stdin_open: true
     tty: true

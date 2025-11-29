@@ -2,13 +2,13 @@
 
 set -euo pipefail
 
-# Script to start backend in Docker (with cloudflared tunnel), Expo locally with tunnel mode
+# Script to start backend in Docker (with cloudflared tunnel), Expo locally
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="${SCRIPT_DIR}/trailmix"
 TUNNEL_URL_FILE="${SCRIPT_DIR}/.tunnel-url"
 
-echo "Starting TrailMix with Docker and Cloudflared Tunnel..."
+echo "Starting TrailMix with Docker (local development)..."
 
 # Function to extract tunnel URL from cloudflared container logs
 extract_tunnel_url() {
@@ -86,10 +86,10 @@ echo ""
 
 # Option 2: Start Expo locally (better for development - hot reload, easier debugging)
 echo "Starting Expo frontend locally..."
-echo "   The app will use the cloudflared tunnel URL: ${TUNNEL_URL}/api/v1"
+echo "   The app will use the API at: ${TUNNEL_URL}/api/v1"
 echo "   Press Ctrl+C to stop all services."
 echo ""
 cd "$FRONTEND_DIR"
 # Don't use --tunnel flag - we're using cloudflared, not Expo's ngrok
-EXPO_PUBLIC_API_BASE_URL="${TUNNEL_URL}/api/v1" npx expo start --tunnel -c
+EXPO_PUBLIC_API_BASE_URL="${TUNNEL_URL}/api/v1" npx expo start -c
 

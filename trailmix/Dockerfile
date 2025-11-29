@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install Docker CLI (needed to read cloudflared logs), bash, and coreutils (for timeout)
+# Install Docker CLI (needed to read cloudflared logs), bash, coreutils (for timeout), and stdbuf (for unbuffered output)
 RUN apk add --no-cache docker-cli bash coreutils
 
 # Install Expo CLI globally

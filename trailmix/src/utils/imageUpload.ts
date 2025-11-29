@@ -187,3 +187,51 @@ export async function uploadProfilePicture(imageUri: string, userId: string): Pr
   return uploadImageToStorage(imageUri, path);
 }
 
+/**
+ * Normalize a profile picture URL to use the current API base URL
+ * This is useful when the URL was saved with an old tunnel URL
+ */
+export function normalizeProfilePictureUrl(url: string | null | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+
+  // If it's not an HTTP(S) URL, return as-is (could be a local file URI)
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return url;
+  }
+
+  // Check if it contains an old tunnel URL (trycloudflare.com)
+  // or if it's a relative path that needs the base URL
+  const trycloudflarePattern = /https?:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/;
+  const currentBaseUrl = getApiBaseUrl();
+  const currentOrigin = currentBaseUrl.replace(/\/api\/v1.*$/, '');
+
+  // If URL contains an old tunnel domain, update it
+  if (trycloudflarePattern.test(url)) {
+    // Extract the path after /api/v1
+    const pathMatch = url.match(/\/api\/v1(\/.*)$/);
+    if (pathMatch) {
+      const path = pathMatch[1];
+      return `${currentOrigin}/api/v1${path}`;
+    }
+    // If no /api/v1 path found, try to extract just the path
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
+    return `${currentOrigin}${path}`;
+  }
+
+  // If URL already uses the current origin, return as-is
+  if (url.startsWith(currentOrigin)) {
+    return url;
+  }
+
+  // If it's a relative path starting with /api/v1, prepend current origin
+  if (url.startsWith('/api/v1')) {
+    return `${currentOrigin}${url}`;
+  }
+
+  // Otherwise, return as-is (might be a different domain like Firebase Storage)
+  return url;
+}
+

@@ -100,6 +100,12 @@ function writePersistedApiUrl(url) {
   }
 }
 
+// Track if we've already logged to avoid spam during hot reloads
+// Use global to persist across module reloads
+if (!global.__TRAILMIX_CONFIG_LOGGED) {
+  global.__TRAILMIX_CONFIG_LOGGED = false;
+}
+
 let tunnelUrl = null;
 let tunnelUrlSource = null;
 for (const tunnelUrlPath of tunnelUrlPaths) {
@@ -109,12 +115,16 @@ for (const tunnelUrlPath of tunnelUrlPaths) {
       if (url) {
         tunnelUrl = url;
         tunnelUrlSource = tunnelUrlPath;
-        console.log(`Found tunnel URL from: ${tunnelUrlPath}`);
-        console.log(`  URL: ${tunnelUrl}`);
+        if (!global.__TRAILMIX_CONFIG_LOGGED) {
+          console.log(`Found tunnel URL from: ${tunnelUrlPath}`);
+          console.log(`  URL: ${tunnelUrl}`);
+        }
         break;
       }
     } catch (err) {
-      console.warn(`Could not read tunnel URL file ${tunnelUrlPath}: ${err.message}`);
+      if (!global.__TRAILMIX_CONFIG_LOGGED) {
+        console.warn(`Could not read tunnel URL file ${tunnelUrlPath}: ${err.message}`);
+      }
     }
   }
 }
@@ -125,12 +135,16 @@ let apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 if (tunnelUrl) {
   // Always use tunnel URL if available (cloudflared)
   apiBaseUrl = `${tunnelUrl}/api/v1`;
-  console.log(`Using cloudflared tunnel API URL: ${apiBaseUrl}`);
-  console.log(`  Source: ${tunnelUrlSource}`);
+  if (!global.__TRAILMIX_CONFIG_LOGGED) {
+    console.log(`Using cloudflared tunnel API URL: ${apiBaseUrl}`);
+    console.log(`  Source: ${tunnelUrlSource}`);
+  }
   // Persist the tunnel URL for future use
   writePersistedApiUrl(apiBaseUrl);
 } else if (apiBaseUrl) {
-  console.log(`Using API URL from environment: ${apiBaseUrl}`);
+  if (!global.__TRAILMIX_CONFIG_LOGGED) {
+    console.log(`Using API URL from environment: ${apiBaseUrl}`);
+  }
   // Persist the environment variable for future use
   writePersistedApiUrl(apiBaseUrl);
 } else {
@@ -138,14 +152,21 @@ if (tunnelUrl) {
   const persistedUrl = readPersistedApiUrl();
   if (persistedUrl) {
     apiBaseUrl = persistedUrl;
-    console.log(`Using persisted API URL: ${apiBaseUrl}`);
-    console.warn(`  WARNING: Using cached API URL. If tunnel URL changed, delete secrets/api-url.txt and restart.`);
+    if (!global.__TRAILMIX_CONFIG_LOGGED) {
+      console.log(`Using persisted API URL: ${apiBaseUrl}`);
+      console.warn(`  WARNING: Using cached API URL. If tunnel URL changed, delete secrets/api-url.txt and restart.`);
+    }
   } else {
     apiBaseUrl = "http://localhost:8000/api/v1";
-    console.warn(`Using default localhost API URL: ${apiBaseUrl}`);
-    console.warn(`   (No tunnel URL or persisted config found - make sure cloudflared is running or set EXPO_PUBLIC_API_BASE_URL)`);
+    if (!global.__TRAILMIX_CONFIG_LOGGED) {
+      console.warn(`Using default localhost API URL: ${apiBaseUrl}`);
+      console.warn(`   (No tunnel URL or persisted config found - make sure cloudflared is running or set EXPO_PUBLIC_API_BASE_URL)`);
+    }
   }
 }
+
+// Mark as logged to prevent repeated messages during hot reloads
+global.__TRAILMIX_CONFIG_LOGGED = true;
 
 // Debug: Log all Firebase-related env vars
 /*console.log('\nEnvironment Variables Check:');
@@ -239,6 +260,8 @@ module.exports = {
           locationAlwaysAndWhenInUsePermission: "This app uses your location to track your hiking activities and provide navigation features.",
           locationAlwaysPermission: "This app uses your location to track your hiking activities and provide navigation features.",
           locationWhenInUsePermission: "This app uses your location to show nearby hiking trails and provide navigation features.",
+          isIosBackgroundLocationEnabled: true,
+          isAndroidBackgroundLocationEnabled: true,
         }
       ],
       [

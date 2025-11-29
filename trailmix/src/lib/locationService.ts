@@ -125,23 +125,44 @@ class LocationService {
    */
   async requestPermissions(): Promise<boolean> {
     try {
+      // Check if location services are enabled
+      const isEnabled = await Location.hasServicesEnabledAsync();
+      if (!isEnabled) {
+        console.warn('Location services are disabled on this device');
+        return false;
+      }
+
       const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
       if (foregroundStatus !== 'granted') {
-        console.warn('Foreground location permission not granted');
+        console.warn('Foreground location permission not granted. Status:', foregroundStatus);
+        if (Platform.OS === 'ios') {
+          console.warn('Make sure NSLocationWhenInUseUsageDescription is set in Info.plist');
+        }
         return false;
       }
 
       // Request background permission for iOS
       if (Platform.OS === 'ios') {
-        const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-        if (backgroundStatus !== 'granted') {
-          console.warn('Background location permission not granted');
+        try {
+          const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+          if (backgroundStatus !== 'granted') {
+            console.warn('Background location permission not granted. Status:', backgroundStatus);
+            // Background permission is optional, so we continue even if not granted
+          }
+        } catch (bgError) {
+          console.warn('Error requesting background location permission (this is optional):', bgError);
+          // Background permission is optional, so we continue
         }
       }
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error requesting location permissions:', error);
+      if (error?.message?.includes('NSLocation')) {
+        console.error('iOS Info.plist configuration issue detected.');
+        console.error('Make sure expo-location plugin is properly configured in app.config.js');
+        console.error('You may need to rebuild the native app or clear Expo cache.');
+      }
       return false;
     }
   }
