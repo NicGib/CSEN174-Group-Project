@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: theme.colors.support.success, //was #4CAF50
+    color: theme.colors.secondary.light, //was #4CAF50
     fontWeight: '600',
     fontFamily: 'InterSemiBold',
   },

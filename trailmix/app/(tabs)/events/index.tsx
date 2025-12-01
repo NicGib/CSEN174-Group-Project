@@ -392,7 +392,7 @@ export default function EventsScreen() {
                         e.stopPropagation();
                         onJoin(item.event_id);
                       }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.colors.primary.medium, borderRadius: 8 }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.colors.primary.light, borderRadius: 8 }}
                     >
                       <Text style={{ color: theme.colors.neutrallight.white, fontFamily: "InterSemiBold", fontWeight: "600" }}>Join</Text>
                     </TouchableOpacity>
