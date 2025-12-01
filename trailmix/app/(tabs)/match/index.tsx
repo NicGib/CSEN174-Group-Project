@@ -25,6 +25,8 @@ import { getConversations, Conversation } from '@/src/lib/messagingService';
 import { auth } from '@/src/lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { theme } from "@/app/theme";
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CACHE_KEY = 'potential_matches_cache';
 const MUTUAL_MATCHES_CACHE_KEY = 'mutual_matches_cache';
@@ -394,7 +396,7 @@ export default function MatchScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>My Matches</Text>
+            <Text style={styles.headerTitle}>Matches</Text>
             <View style={styles.viewModeToggle}>
               <TouchableOpacity
                 style={styles.toggleButton}
@@ -434,7 +436,7 @@ export default function MatchScreen() {
 
         {loadingMutualMatches && mutualMatches.length === 0 ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color={theme.colors.primary.medium} />
             <Text style={styles.loadingText}>Loading matches...</Text>
           </View>
         ) : filteredMutualMatches.length === 0 ? (
@@ -474,7 +476,7 @@ export default function MatchScreen() {
           >
             {loadingMutualMatches && mutualMatches.length > 0 && (
               <View style={styles.refreshingIndicator}>
-                <ActivityIndicator size="small" color="#4CAF50" />
+                <ActivityIndicator size="small" color={theme.colors.primary.medium} />
                 <Text style={styles.refreshingText}>Refreshing...</Text>
               </View>
             )}
@@ -563,7 +565,7 @@ export default function MatchScreen() {
           </View>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <ActivityIndicator size="large" color={theme.colors.primary.medium} />
           <Text style={styles.loadingText}>Loading matches...</Text>
         </View>
       </View>
@@ -730,7 +732,7 @@ export default function MatchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.secondary.light, //was #f5f5f5
   },
   loadingContainer: {
     flex: 1,
@@ -740,7 +742,9 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #666
   },
   emptyContainer: {
     flex: 1,
@@ -750,33 +754,37 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: 'InterExtraBold',
+    fontWeight: '800',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #666
     textAlign: 'center',
     marginBottom: 24,
   },
   refreshButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
   },
   refreshButtonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
   },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   headerTop: {
     flexDirection: 'row',
@@ -786,13 +794,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: 'InterExtraBold',
+    fontWeight: '800',
+    color: theme.colors.primary.dark, //was #333
     flex: 1,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: 'InterBold',
+    fontWeight: '700',
+    color: theme.colors.secondary.light, //was #666
     marginTop: 4,
   },
   searchContainer: {
@@ -807,7 +818,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 16,
-    color: '#333',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.dark, //was #333
   },
   refreshingIndicator: {
     flexDirection: 'row',
@@ -818,7 +831,9 @@ const styles = StyleSheet.create({
   },
   refreshingText: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #666
   },
   viewModeToggle: {
     flexDirection: 'row',
@@ -830,17 +845,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 18,
+    backgroundColor: theme.colors.secondary.light,
   },
   toggleButtonActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium,
   },
   toggleButtonText: {
     fontSize: 14,
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.primary.medium, //was #666
   },
   toggleButtonTextActive: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
   },
   matchesListContainer: {
     flex: 1,
@@ -850,12 +867,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   matchCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.neutrallight.white, //was #fff
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: theme.colors.primary.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 3.84,
     elevation: 5,
   },
@@ -872,14 +889,15 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium,
     justifyContent: 'center',
     alignItems: 'center',
   },
   matchAvatarText: {
     fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'InterExtraBold',
+    color: theme.colors.neutrallight.white, //was #fff
+    fontWeight: '800',
   },
   unreadBadge: {
     position: 'absolute',
@@ -888,9 +906,9 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#FF3B30',
+    backgroundColor: theme.colors.support.error, //was #FF3B30
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: theme.colors.neutrallight.white, //was #fff
   },
   matchInfo: {
     flex: 1,
@@ -902,28 +920,36 @@ const styles = StyleSheet.create({
   },
   matchName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: 'InterExtraBold',
+    fontWeight: '800',
+    color: theme.colors.primary.dark, //was #333
   },
   unreadIndicator: {
     marginLeft: 8,
   },
   unreadIndicatorText: {
     fontSize: 12,
-    color: '#FF3B30',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.support.error, //was #FF3B30
   },
   matchUsername: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #666
     marginBottom: 4,
   },
   matchDate: {
     fontSize: 12,
-    color: '#999',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #999
   },
   arrowText: {
     fontSize: 20,
-    color: '#4CAF50',
+    fontFamily: 'InterSemiBold',
+    color: theme.colors.primary.medium,
     fontWeight: '600',
     marginLeft: 12,
   },
@@ -947,21 +973,23 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.primary.dark,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
   passButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: theme.colors.support.error, //was #F44336
   },
   likeButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium,
   },
   actionButtonText: {
     fontSize: 28,
-    color: '#fff',
+    fontFamily: 'InterSemiBold',
+    fontWeight: '600',
+    color: theme.colors.secondary.light, //was #fff
   },
 });
 

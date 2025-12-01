@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAddressSearch, AddressSuggestion } from '@/hooks/useAddressSearch';
 import { locationService, PlaceDetails } from '@/src/lib/locationService';
+import { theme } from "@/app/theme";
 
 interface AddressSearchBarProps {
   onLocationSelect: (location: { latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails }) => void;
@@ -344,8 +345,8 @@ export function AddressSearchBar({
             onPress={() => toggleAddressBar(true)}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="search" size={20} color="#5f6368" />
-            <Text style={styles.googleSearchBarText} numberOfLines={1}>
+            <MaterialIcons name="search" size={20} color={theme.colors.secondary.dark} />
+            <Text style={theme.typography.body.m, styles.googleSearchBarText} numberOfLines={1}>
               {addressInput || placeholder}
             </Text>
           </TouchableOpacity>
@@ -355,11 +356,11 @@ export function AddressSearchBar({
         {showAddressBar && (
           <Animated.View style={[styles.googleSearchBarExpanded, expandedBarStyle]}>
             <View style={styles.googleSearchBarContent}>
-              <MaterialIcons name="search" size={20} color="#5f6368" style={{ marginRight: 12 }} />
+              <MaterialIcons name="search" size={20} color={theme.colors.secondary.dark} style={{ marginRight: 12 }} />
               <TextInput
                 style={styles.googleSearchInput}
                 placeholder={placeholder}
-                placeholderTextColor="#9aa0a6"
+                placeholderTextColor={theme.colors.secondary.medium}
                 value={addressInput}
                 onChangeText={setAddressInput}
                 onSubmitEditing={handleGeocodePress}
@@ -368,14 +369,14 @@ export function AddressSearchBar({
               />
               {addressInput.length > 0 && (
                 <TouchableOpacity onPress={clearAddress} style={styles.googleClearButton}>
-                  <MaterialIcons name="close" size={18} color="#5f6368" />
+                  <MaterialIcons name="close" size={18} color={theme.colors.secondary.dark} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 onPress={() => toggleAddressBar(false)}
                 style={styles.googleBackButton}
               >
-                <MaterialIcons name="arrow-back" size={20} color="#5f6368" />
+                <MaterialIcons name="arrow-back" size={20} color={theme.colors.secondary.dark} />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -407,7 +408,7 @@ export function AddressSearchBar({
                   activeOpacity={0.7}
                 >
                   <View style={styles.googleSuggestionIcon}>
-                    <MaterialIcons name="my-location" size={24} color="#4285f4" />
+                    <MaterialIcons name="my-location" size={24} color={theme.colors.support.success} />
                   </View>
                   <View style={styles.googleSuggestionTextContainer}>
                     <Text style={styles.googleSuggestionTitle}>Use current location</Text>
@@ -425,7 +426,7 @@ export function AddressSearchBar({
               
               {isLoading && (
                 <View style={[styles.googleSuggestionItem, { justifyContent: 'center' }]}>
-                  <ActivityIndicator size="small" color="#4285f4" />
+                  <ActivityIndicator size="small" color={theme.colors.support.success} />
                   <Text style={styles.googleSuggestionText}>Searching...</Text>
                 </View>
               )}
@@ -447,7 +448,7 @@ export function AddressSearchBar({
                       <MaterialIcons 
                         name={getIconForType(suggestion.result_type)} 
                         size={24} 
-                        color="#5f6368" 
+                        color={theme.colors.secondary.dark}
                       />
                     </View>
                     <View style={styles.googleSuggestionTextContainer}>
@@ -480,7 +481,7 @@ export function AddressSearchBar({
           onPress={() => toggleAddressBar(true)}
           activeOpacity={0.8}
         >
-          <MaterialIcons name="search" size={20} color="#5f6368" />
+          <MaterialIcons name="search" size={20} color={theme.colors.secondary.medium} />
           <Text style={styles.formSearchBarText} numberOfLines={1}>
             {addressInput || placeholder}
           </Text>
@@ -491,11 +492,11 @@ export function AddressSearchBar({
       {showAddressBar && (
         <Animated.View style={[styles.formSearchBar, expandedBarStyle]}>
           <View style={styles.formSearchBarContent}>
-            <MaterialIcons name="search" size={20} color="#5f6368" style={{ marginRight: 12 }} />
+            <MaterialIcons name="search" size={20} color={theme.colors.secondary.medium} style={{ marginRight: 12 }} />
             <TextInput
               style={styles.formSearchInput}
               placeholder={placeholder}
-              placeholderTextColor="#9aa0a6"
+              placeholderTextColor={theme.colors.secondary.medium}
               value={addressInput}
               onChangeText={setAddressInput}
               onSubmitEditing={handleGeocodePress}
@@ -504,7 +505,7 @@ export function AddressSearchBar({
             />
             {addressInput.length > 0 && (
               <TouchableOpacity onPress={clearAddress} style={styles.googleClearButton}>
-                <MaterialIcons name="close" size={18} color="#5f6368" />
+                <MaterialIcons name="close" size={18} color={theme.colors.secondary.medium} />
               </TouchableOpacity>
             )}
           </View>
@@ -573,7 +574,7 @@ export function AddressSearchBar({
                     <MaterialIcons 
                       name={getIconForType(suggestion.result_type)} 
                       size={24} 
-                      color="#5f6368" 
+                      color={theme.colors.secondary.medium}
                     />
                   </View>
                   <View style={styles.googleSuggestionTextContainer}>
@@ -602,15 +603,15 @@ const styles = StyleSheet.create({
     top: Platform.OS === 'ios' ? 60 : 40,
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.secondary.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 10, // Higher elevation for Android
     zIndex: 1000, // Higher z-index for iOS
@@ -618,7 +619,7 @@ const styles = StyleSheet.create({
   googleSearchBarText: {
     marginLeft: 12,
     fontSize: 15,
-    color: '#5f6368',
+    color: theme.colors.secondary.medium,
     flex: 1,
   },
   googleSearchBarExpanded: {
@@ -626,11 +627,11 @@ const styles = StyleSheet.create({
     top: Platform.OS === 'ios' ? 60 : 40,
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light,
     borderRadius: 24,
-    shadowColor: '#000',
+    shadowColor: theme.colors.secondary.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 10, // Higher elevation for Android
     zIndex: 1000, // Higher z-index for iOS
@@ -644,7 +645,7 @@ const styles = StyleSheet.create({
   googleSearchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#202124',
+    color: theme.colors.secondary.medium,
     padding: 0,
     margin: 0,
   },
@@ -660,11 +661,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: theme.colors.secondary.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 9, // Slightly lower than search bar but still high
     zIndex: 999, // Slightly lower than search bar but still high
@@ -700,17 +701,17 @@ const styles = StyleSheet.create({
   },
   googleSuggestionTitle: {
     fontSize: 15,
-    color: '#202124',
+    color: theme.colors.secondary.dark,
     fontWeight: '400',
     marginBottom: 2,
   },
   googleSuggestionSubtitle: {
     fontSize: 13,
-    color: '#5f6368',
+    color: theme.colors.secondary.medium,
   },
   googleSuggestionText: {
     fontSize: 15,
-    color: '#5f6368',
+    color: theme.colors.secondary.medium,
     marginLeft: 12,
   },
   sectionHeader: {
@@ -723,7 +724,7 @@ const styles = StyleSheet.create({
   sectionHeaderText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#5f6368',
+    color: theme.colors.secondary.medium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -745,15 +746,15 @@ const styles = StyleSheet.create({
   formSearchBarText: {
     marginLeft: 12,
     fontSize: 15,
-    color: '#5f6368',
+    color: theme.colors.secondary.medium,
     flex: 1,
   },
   formSearchBar: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: theme.colors.secondary.light,
+    shadowColor: theme.colors.secondary.dark,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -768,7 +769,7 @@ const styles = StyleSheet.create({
   formSearchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#202124',
+    color: theme.colors.secondary.medium,
     padding: 0,
     margin: 0,
   },

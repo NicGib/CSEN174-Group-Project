@@ -14,6 +14,9 @@ import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { auth } from '@/src/lib/firebase';
 import { pushRoute } from '@/src/lib/navigationStack';
 
+import { LinearGradient } from "expo-linear-gradient";
+import { theme } from "@/app/theme";
+
 export default function ViewProfileScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -70,25 +73,55 @@ export default function ViewProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.placeholder} />
+      <LinearGradient
+        colors={theme.colors.gradient.lightgreen}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <View style={styles.placeholder} />
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.support.success} />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
-        </View>
-      </View>
+      </LinearGradient>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.container}>
+      <LinearGradient
+        colors={theme.colors.gradient.lightgreen}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Profile</Text>
+            <View style={styles.placeholder} />
+          </View>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Profile not found</Text>
+          </View>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <LinearGradient
+        colors={theme.colors.gradient.lightgreen}
+        style={styles.gradientContainer}
+      >
+      <ScrollView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Back</Text>
@@ -96,110 +129,98 @@ export default function ViewProfileScreen() {
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={styles.placeholder} />
         </View>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Profile not found</Text>
-        </View>
-      </View>
-    );
-  }
 
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            {profile.profilePicture ? (
-              <Text style={styles.avatarText}>📷</Text>
-            ) : (
-              <Text style={styles.avatarText}>
-                {(profile.name || profile.username || '?')[0].toUpperCase()}
-              </Text>
+        <View style={styles.content}>
+          <View style={styles.profileHeader}>
+            <View style={styles.avatar}>
+              {profile.profilePicture ? (
+                <Text style={styles.avatarText}>📷</Text>
+              ) : (
+                <Text style={styles.avatarText}>
+                  {(profile.name || profile.username || '?')[0].toUpperCase()}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.name}>{profile.name || profile.username || 'Unknown User'}</Text>
+            <Text style={styles.username}>@{profile.username || 'user'}</Text>
+            {!isOwnProfile && (
+              <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+                <Text style={styles.messageButtonText}>Message</Text>
+              </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.name}>{profile.name || profile.username || 'Unknown User'}</Text>
-          <Text style={styles.username}>@{profile.username || 'user'}</Text>
-          {!isOwnProfile && (
-            <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
-              <Text style={styles.messageButtonText}>Message</Text>
-            </TouchableOpacity>
+
+          {profile.bio && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Bio</Text>
+              <Text style={styles.sectionContent}>{profile.bio}</Text>
+            </View>
+          )}
+
+          {profile.profileDescription && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About</Text>
+              <Text style={styles.sectionContent}>{profile.profileDescription}</Text>
+            </View>
+          )}
+
+          {profile.hikingLevel && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Hiking Level</Text>
+              <Text style={styles.sectionContent}>
+                {profile.hikingLevel.charAt(0).toUpperCase() + profile.hikingLevel.slice(1)}
+              </Text>
+            </View>
+          )}
+
+          {profile.interests && profile.interests.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Interests</Text>
+              <View style={styles.interestsContainer}>
+                {profile.interests.map((interest, index) => (
+                  <View key={index} style={styles.interestTag}>
+                    <Text style={styles.interestText}>{interest}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {profile.gender && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Gender</Text>
+              <Text style={styles.sectionContent}>{profile.gender}</Text>
+            </View>
+          )}
+
+          {profile.totalHikes !== undefined && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Total Hikes</Text>
+              <Text style={styles.sectionContent}>{profile.totalHikes}</Text>
+            </View>
+          )}
+
+          {profile.totalDistance !== undefined && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Total Distance</Text>
+              <Text style={styles.sectionContent}>
+                {profile.totalDistance.toFixed(1)} miles
+              </Text>
+            </View>
           )}
         </View>
-
-        {profile.bio && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Bio</Text>
-            <Text style={styles.sectionContent}>{profile.bio}</Text>
-          </View>
-        )}
-
-        {profile.profileDescription && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.sectionContent}>{profile.profileDescription}</Text>
-          </View>
-        )}
-
-        {profile.hikingLevel && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Hiking Level</Text>
-            <Text style={styles.sectionContent}>
-              {profile.hikingLevel.charAt(0).toUpperCase() + profile.hikingLevel.slice(1)}
-            </Text>
-          </View>
-        )}
-
-        {profile.interests && profile.interests.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interests</Text>
-            <View style={styles.interestsContainer}>
-              {profile.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {profile.gender && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Gender</Text>
-            <Text style={styles.sectionContent}>{profile.gender}</Text>
-          </View>
-        )}
-
-        {profile.totalHikes !== undefined && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Total Hikes</Text>
-            <Text style={styles.sectionContent}>{profile.totalHikes}</Text>
-          </View>
-        )}
-
-        {profile.totalDistance !== undefined && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Total Distance</Text>
-            <Text style={styles.sectionContent}>
-              {profile.totalDistance.toFixed(1)} miles
-            </Text>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradientContainer: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+  },
+  container: {
+    // flex: 1,
+    // backgroundColor: theme.colors.primary.light, //was #f5f5f5
   },
   header: {
     flexDirection: 'row',
@@ -207,9 +228,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   backButton: {
     padding: 8,
@@ -218,13 +239,15 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: theme.colors.support.success, //was #4CAF50
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
     flex: 1,
     textAlign: 'center',
   },
@@ -239,7 +262,9 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   emptyContainer: {
     flex: 1,
@@ -248,7 +273,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   content: {
     padding: 20,
@@ -258,60 +285,68 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   avatarText: {
     fontSize: 40,
-    color: '#fff',
-    fontWeight: 'bold',
+    color: theme.colors.secondary.light, //was #fff
+    fontWeight: '700',
+    fontFamily: 'InterBold',
   },
   name: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 4,
   },
   username: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
     marginBottom: 16,
   },
   messageButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
     marginTop: 8,
   },
   messageButtonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   section: {
     marginBottom: 24,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     padding: 16,
     borderRadius: 12,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 12,
   },
   sectionContent: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
     lineHeight: 24,
   },
   interestsContainer: {
@@ -324,11 +359,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    borderColor: theme.colors.support.success,
+    borderWidth: 1,
   },
   interestText: {
     fontSize: 14,
-    color: '#4CAF50',
+    color: theme.colors.support.success, //was #4CAF50
     fontWeight: '500',
+    fontFamily: 'Inter',
   },
 });
 

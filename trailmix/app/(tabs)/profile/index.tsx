@@ -17,6 +17,9 @@ import { Timestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pickImageFromLibrary, takePhoto, uploadProfilePicture, normalizeProfilePictureUrl } from '@/src/utils/imageUpload';
 
+import { LinearGradient } from "expo-linear-gradient";
+import { theme } from "@/app/theme";
+
 const HIKING_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const;
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const;
 
@@ -212,293 +215,306 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+      <LinearGradient
+        colors={theme.colors.gradient.lightgreen}
+        style={styles.gradientContainer}
+      >
+        <View style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary.medium} />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <Text style={styles.headerSubtitle}>Update your personal information</Text>
-      </View>
+    <LinearGradient
+      colors={theme.colors.gradient.lightgreen}
+      style={styles.gradientContainer}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={styles.headerSubtitle}>Update your personal information</Text>
+        </View>
 
-      <View style={styles.form}>
-        {/* Profile Picture */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Profile Picture</Text>
-          <View style={styles.profilePictureContainer}>
-            <View style={styles.profilePictureWrapper}>
-              {profilePictureUri ? (
-                <Image 
-                  source={{ uri: profilePictureUri }} 
-                  style={styles.profilePicture}
-                  onError={(error) => {
-                    console.error('Error loading profile picture:', error.nativeEvent.error);
-                    console.error('Failed URL:', profilePictureUri);
-                  }}
-                  onLoad={() => {
-                    console.log('Profile picture loaded successfully:', profilePictureUri);
-                  }}
-                />
-              ) : (
-                <View style={styles.profilePicturePlaceholder}>
-                  <Text style={styles.profilePicturePlaceholderText}>
-                    {(name || username || '?')[0].toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.profilePictureButtons}>
-              <TouchableOpacity
-                style={styles.profilePictureButton}
-                onPress={handleSelectPhoto}
-                disabled={uploadingImage}
-              >
-                {uploadingImage ? (
-                  <ActivityIndicator size="small" color="#4CAF50" />
+        <View style={styles.form}>
+          {/* Profile Picture */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Profile Picture</Text>
+            <View style={styles.profilePictureContainer}>
+              <View style={styles.profilePictureWrapper}>
+                {profilePictureUri ? (
+                  <Image 
+                    source={{ uri: profilePictureUri }} 
+                    style={styles.profilePicture}
+                    onError={(error) => {
+                      console.error('Error loading profile picture:', error.nativeEvent.error);
+                      console.error('Failed URL:', profilePictureUri);
+                    }}
+                    onLoad={() => {
+                      console.log('Profile picture loaded successfully:', profilePictureUri);
+                    }}
+                  />
                 ) : (
-                  <Text style={styles.profilePictureButtonText}>Change Photo</Text>
+                  <View style={styles.profilePicturePlaceholder}>
+                    <Text style={styles.profilePicturePlaceholderText}>
+                      {(name || username || '?')[0].toUpperCase()}
+                    </Text>
+                  </View>
                 )}
-              </TouchableOpacity>
-              {profilePictureUri && (
+              </View>
+              <View style={styles.profilePictureButtons}>
                 <TouchableOpacity
-                  style={[styles.profilePictureButton, styles.removePhotoButton]}
-                  onPress={() => setProfilePictureUri(null)}
+                  style={styles.profilePictureButton}
+                  onPress={handleSelectPhoto}
                   disabled={uploadingImage}
                 >
-                  <Text style={[styles.profilePictureButtonText, styles.removePhotoButtonText]}>
-                    Remove
+                  {uploadingImage ? (
+                    <ActivityIndicator size="small" color={theme.colors.primary.medium} />
+                  ) : (
+                    <Text style={styles.profilePictureButtonText}>Change Photo</Text>
+                  )}
+                </TouchableOpacity>
+                {profilePictureUri && (
+                  <TouchableOpacity
+                    style={[styles.profilePictureButton, styles.removePhotoButton]}
+                    onPress={() => setProfilePictureUri(null)}
+                    disabled={uploadingImage}
+                  >
+                    <Text style={[styles.profilePictureButtonText, styles.removePhotoButtonText]}>
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* Name */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Name *</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter your full name"
+              placeholderTextColor={theme.colors.secondary.medium}
+            />
+          </View>
+
+          {/* Username */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Username *</Text>
+            <TextInput
+              style={styles.input}
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Enter your username"
+              placeholderTextColor={theme.colors.secondary.medium}
+              autoCapitalize="none"
+            />
+          </View>
+
+          {/* Preferred Name */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Preferred Name</Text>
+            <TextInput
+              style={styles.input}
+              value={preferredName}
+              onChangeText={setPreferredName}
+              placeholder="What should we call you?"
+              placeholderTextColor={theme.colors.secondary.medium}
+            />
+          </View>
+
+          {/* Email (read-only) */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={[styles.input, styles.readOnlyInput]}
+              value={profile?.email || ''}
+              editable={false}
+              placeholderTextColor={theme.colors.secondary.medium}
+            />
+            <Text style={styles.helperText}>Email cannot be changed</Text>
+          </View>
+
+          {/* Bio */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={bio}
+              onChangeText={setBio}
+              placeholder="Tell us about yourself..."
+              placeholderTextColor={theme.colors.secondary.medium}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Profile Description */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Profile Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={profileDescription}
+              onChangeText={setProfileDescription}
+              placeholder="Describe your hiking interests and experience..."
+              placeholderTextColor={theme.colors.secondary.medium}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Gender */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Gender</Text>
+            <View style={styles.optionsContainer}>
+              {GENDER_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.optionButton,
+                    gender === option && styles.optionButtonSelected,
+                  ]}
+                  onPress={() => setGender(gender === option ? '' : option)}
+                >
+                  <Text
+                    style={[
+                      styles.optionButtonText,
+                      gender === option && styles.optionButtonTextSelected,
+                    ]}
+                  >
+                    {option}
                   </Text>
                 </TouchableOpacity>
-              )}
+              ))}
             </View>
           </View>
-        </View>
 
-        {/* Name */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter your full name"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        {/* Username */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Username *</Text>
-          <TextInput
-            style={styles.input}
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Enter your username"
-            placeholderTextColor="#999"
-            autoCapitalize="none"
-          />
-        </View>
-
-        {/* Preferred Name */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Preferred Name</Text>
-          <TextInput
-            style={styles.input}
-            value={preferredName}
-            onChangeText={setPreferredName}
-            placeholder="What should we call you?"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        {/* Email (read-only) */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={[styles.input, styles.readOnlyInput]}
-            value={profile?.email || ''}
-            editable={false}
-            placeholderTextColor="#999"
-          />
-          <Text style={styles.helperText}>Email cannot be changed</Text>
-        </View>
-
-        {/* Bio */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Bio</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Tell us about yourself..."
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Profile Description */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Profile Description</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={profileDescription}
-            onChangeText={setProfileDescription}
-            placeholder="Describe your hiking interests and experience..."
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Gender */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Gender</Text>
-          <View style={styles.optionsContainer}>
-            {GENDER_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.optionButton,
-                  gender === option && styles.optionButtonSelected,
-                ]}
-                onPress={() => setGender(gender === option ? '' : option)}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    gender === option && styles.optionButtonTextSelected,
-                  ]}
-                >
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Hiking Level */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Hiking Level</Text>
-          <View style={styles.optionsContainer}>
-            {HIKING_LEVELS.map((level) => (
-              <TouchableOpacity
-                key={level}
-                style={[
-                  styles.optionButton,
-                  hikingLevel === level && styles.optionButtonSelected,
-                ]}
-                onPress={() => setHikingLevel(hikingLevel === level ? '' : level)}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    hikingLevel === level && styles.optionButtonTextSelected,
-                  ]}
-                >
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Birthday */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Birthday</Text>
-          <TextInput
-            style={styles.input}
-            value={birthday}
-            onChangeText={setBirthday}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#999"
-          />
-          {Platform.OS === 'ios' && (
-            <Text style={styles.helperText}>Use date picker on iOS</Text>
-          )}
-        </View>
-
-        {/* Interests */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Interests</Text>
-          <View style={styles.interestsContainer}>
-            {interests.map((interest, index) => (
-              <View key={index} style={styles.interestTag}>
-                <Text style={styles.interestTagText}>{interest}</Text>
+          {/* Hiking Level */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Hiking Level</Text>
+            <View style={styles.optionsContainer}>
+              {HIKING_LEVELS.map((level) => (
                 <TouchableOpacity
-                  onPress={() => handleRemoveInterest(interest)}
-                  style={styles.interestRemoveButton}
+                  key={level}
+                  style={[
+                    styles.optionButton,
+                    hikingLevel === level && styles.optionButtonSelected,
+                  ]}
+                  onPress={() => setHikingLevel(hikingLevel === level ? '' : level)}
                 >
-                  <Text style={styles.interestRemoveText}>×</Text>
+                  <Text
+                    style={[
+                      styles.optionButtonText,
+                      hikingLevel === level && styles.optionButtonTextSelected,
+                    ]}
+                  >
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-          <View style={styles.addInterestContainer}>
+
+          {/* Birthday */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Birthday</Text>
             <TextInput
-              style={[styles.input, styles.addInterestInput]}
-              value={newInterest}
-              onChangeText={setNewInterest}
-              placeholder="Add an interest..."
-              placeholderTextColor="#999"
-              onSubmitEditing={handleAddInterest}
+              style={styles.input}
+              value={birthday}
+              onChangeText={setBirthday}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={theme.colors.secondary.medium}
             />
-            <TouchableOpacity
-              style={styles.addInterestButton}
-              onPress={handleAddInterest}
-            >
-              <Text style={styles.addInterestButtonText}>Add</Text>
-            </TouchableOpacity>
+            {Platform.OS === 'ios' && (
+              <Text style={styles.helperText}>Use date picker on iOS</Text>
+            )}
           </View>
-        </View>
 
-        {/* Stats (read-only) */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Statistics</Text>
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.totalHikes || 0}</Text>
-              <Text style={styles.statLabel}>Total Hikes</Text>
+          {/* Interests */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Interests</Text>
+            <View style={styles.interestsContainer}>
+              {interests.map((interest, index) => (
+                <View key={index} style={styles.interestTag}>
+                  <Text style={styles.interestTagText}>{interest}</Text>
+                  <TouchableOpacity
+                    onPress={() => handleRemoveInterest(interest)}
+                    style={styles.interestRemoveButton}
+                  >
+                    <Text style={styles.interestRemoveText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {profile?.totalDistance ? `${profile.totalDistance.toFixed(1)} km` : '0 km'}
-              </Text>
-              <Text style={styles.statLabel}>Total Distance</Text>
+            <View style={styles.addInterestContainer}>
+              <TextInput
+                style={[styles.input, styles.addInterestInput]}
+                value={newInterest}
+                onChangeText={setNewInterest}
+                placeholder="Add an interest..."
+                placeholderTextColor={theme.colors.secondary.medium}
+                onSubmitEditing={handleAddInterest}
+              />
+              <TouchableOpacity
+                style={styles.addInterestButton}
+                onPress={handleAddInterest}
+              >
+                <Text style={styles.addInterestButtonText}>Add</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          {/* Stats (read-only) */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Statistics</Text>
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.totalHikes || 0}</Text>
+                <Text style={styles.statLabel}>Total Hikes</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {profile?.totalDistance ? `${profile.totalDistance.toFixed(1)} km` : '0 km'}
+                </Text>
+                <Text style={styles.statLabel}>Total Distance</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Save Button */}
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradientContainer: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+  },
+  container: {
+    // flex: 1,
+    // backgroundColor: theme.colors.primary.light, //was #f5f5f5
   },
   contentContainer: {
     paddingBottom: 40,
@@ -511,24 +527,29 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #666
   },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: 'InterExtraBold',
+    fontWeight: '800',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: 'InterBold',
+    fontWeight: '700',
+    color: theme.colors.secondary.light, //was #666
   },
   form: {
     padding: 20,
@@ -538,22 +559,25 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: theme.colors.secondary.dark, //was #E0E0E0
     borderRadius: 10,
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     fontSize: 16,
+    fontFamily: 'Inter',
+    fontWeight: '400',
     color: '#333',
   },
   readOnlyInput: {
-    backgroundColor: '#F5F5F5',
-    color: '#666',
+    backgroundColor: theme.colors.secondary.light, //was #f5f5f5
+    color: theme.colors.primary.medium, //was #666
   },
   textArea: {
     minHeight: 100,
@@ -561,7 +585,9 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 12,
-    color: '#999',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.dark, //was #999
     marginTop: 4,
   },
   optionsContainer: {
@@ -574,20 +600,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.secondary.dark, //was #E0E0E0
+    backgroundColor: theme.colors.secondary.light, //was #fff
   },
   optionButtonSelected: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.dark,
+    borderColor: theme.colors.primary.dark,
   },
   optionButtonText: {
     fontSize: 14,
-    color: '#333',
+    fontFamily: 'Inter',
     fontWeight: '500',
+    color: theme.colors.primary.dark, //was #333
   },
   optionButtonTextSelected: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
   },
   interestsContainer: {
     flexDirection: 'row',
@@ -598,7 +625,7 @@ const styles = StyleSheet.create({
   interestTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: theme.colors.primary.dark, //was #E3F2FD
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -606,21 +633,23 @@ const styles = StyleSheet.create({
   },
   interestTagText: {
     fontSize: 14,
-    color: '#1976D2',
+    fontFamily: 'Inter',
+    color: theme.colors.secondary.light, //was #1976D2
     fontWeight: '500',
   },
   interestRemoveButton: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#1976D2',
+    backgroundColor: theme.colors.secondary.light, //was #1976D2
     justifyContent: 'center',
     alignItems: 'center',
   },
   interestRemoveText: {
-    color: '#fff',
+    color: theme.colors.primary.dark, //was #fff
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: 'InterBold',
+    fontWeight: '700',
     lineHeight: 14,
   },
   addInterestContainer: {
@@ -633,13 +662,14 @@ const styles = StyleSheet.create({
   addInterestButton: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.dark,
     borderRadius: 10,
     justifyContent: 'center',
   },
   addInterestButtonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
   },
   statsContainer: {
@@ -648,25 +678,35 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     padding: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: theme.colors.primary.dark, //was #E0E0E0
+    shadowColor: theme.colors.primary.dark,
+    shadowOffset: {
+        width: 0,
+        height: 2,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 3.84,
     alignItems: 'center',
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontFamily: 'InterExtraBold',
+    fontWeight: '800',
+    color: theme.colors.primary.medium,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.primary.medium, //was #666
   },
   saveButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.dark,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -676,8 +716,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveButtonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
   },
   profilePictureContainer: {
@@ -697,14 +738,15 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profilePicturePlaceholderText: {
     fontSize: 48,
-    color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'InterExtraBold',
+    color: theme.colors.secondary.light, //was #fff
+    fontWeight: '800',
   },
   profilePictureButtons: {
     flexDirection: 'row',
@@ -713,14 +755,15 @@ const styles = StyleSheet.create({
   profilePictureButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium,
     borderRadius: 20,
     minWidth: 120,
     alignItems: 'center',
   },
   profilePictureButtonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 14,
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
   },
   removePhotoButton: {
@@ -729,7 +772,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   removePhotoButtonText: {
-    color: '#666',
+    color: theme.colors.primary.medium, //was #666
   },
 });
 
