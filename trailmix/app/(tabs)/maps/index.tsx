@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { LocationBottomSheet } from '@/components/maps/LocationBottomSheet';
 
+import { theme } from "@/app/theme";
+
 /**
  * Live Map Screen
  * Displays an embedded map with location tracking, address search, and map controls
@@ -199,21 +201,21 @@ export default function MapsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.neutrallight.white, //was #F5F5F5
   },
   trackingIndicator: {
     position: 'absolute',
     bottom: 20,
     left: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.secondary.dark, //was #000
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 4,
     elevation: 3,
     zIndex: 997,
@@ -222,12 +224,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#34a853',
+    backgroundColor: theme.colors.support.success, //was #34a853
     marginRight: 8,
   },
   trackingText: {
     fontSize: 13,
-    color: '#5f6368',
+    fontFamily: 'Inter',
+    color: theme.colors.secondary.dark, //was #5f6368
     fontWeight: '400',
   },
 });

@@ -15,6 +15,9 @@ import { getUserProfile, updateUserProfile, UserProfile, UserStatus } from '@/sr
 import { endpoints } from '@/src/constants/api';
 import { clearAllSavedMaps } from '@/src/lib/mapStorage';
 
+import { LinearGradient } from "expo-linear-gradient";
+import { theme } from "@/app/theme";
+
 const CACHE_KEYS = {
   matches: 'potential_matches_cache',
   maps: '@trailmix_saved_maps',
@@ -204,164 +207,172 @@ export default function DebugScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Debug Tools</Text>
-        <Text style={styles.headerSubtitle}>Development utilities</Text>
-      </View>
-
-      {/* Cache Management Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cache Management</Text>
-        
-        <TouchableOpacity
-          style={[styles.button, styles.dangerButton]}
-          onPress={clearAllCache}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Clear All Cache</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
-          onPress={clearMatchesCache}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Clear Matches Cache</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
-          onPress={clearMapsCache}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Clear Saved Maps</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.infoButton]}
-          onPress={showCacheInfo}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Show Cache Info</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* User Status Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>User Status</Text>
-        
-        <View style={styles.statusContainer}>
-          <Text style={styles.label}>Current Status:</Text>
-          <Text style={styles.currentStatus}>{currentStatus}</Text>
+    <LinearGradient
+      colors={theme.colors.gradient.lightgreen}
+      style={styles.gradientContainer}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Debug Tools</Text>
+          <Text style={styles.headerSubtitle}>Development utilities</Text>
         </View>
 
-        <Text style={styles.label}>Change Status To:</Text>
-        <View style={styles.statusButtonsContainer}>
-          {USER_STATUSES.map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={[
-                styles.statusButton,
-                newStatus === status && styles.statusButtonSelected,
-              ]}
-              onPress={() => setNewStatus(status)}
-            >
-              <Text
-                style={[
-                  styles.statusButtonText,
-                  newStatus === status && styles.statusButtonTextSelected,
-                ]}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
-          onPress={updateStatus}
-          disabled={loading || newStatus === currentStatus}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Update Status</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Server Actions Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Server Actions</Text>
-        
-        <TouchableOpacity
-          style={[styles.button, styles.warningButton]}
-          onPress={rebuildMatchingIndex}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Rebuild Matching Index</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Feature Flags Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Feature Flags</Text>
-        
-        <View style={styles.toggleContainer}>
-          <View style={styles.toggleInfo}>
-            <Text style={styles.toggleLabel}>Google Maps Place Details</Text>
-            <Text style={styles.toggleDescription}>
-              Enable Google Maps for place details and photos (100 requests/day limit)
-            </Text>
-          </View>
+        {/* Cache Management Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Cache Management</Text>
+          
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              googleMapsEnabled && styles.toggleButtonActive,
-            ]}
-            onPress={toggleGoogleMaps}
+            style={[styles.button, styles.dangerButton]}
+            onPress={clearAllCache}
+            disabled={loading}
           >
-            <Text style={[
-              styles.toggleButtonText,
-              googleMapsEnabled && styles.toggleButtonTextActive,
-            ]}>
-              {googleMapsEnabled ? 'ON' : 'OFF'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Clear All Cache</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
+            onPress={clearMatchesCache}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Clear Matches Cache</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
+            onPress={clearMapsCache}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Clear Saved Maps</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.infoButton]}
+            onPress={showCacheInfo}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Show Cache Info</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* User Info Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>User Info</Text>
-        {profile && (
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>UID: {profile.uid}</Text>
-            <Text style={styles.infoText}>Email: {profile.email}</Text>
-            <Text style={styles.infoText}>Username: {profile.username}</Text>
-            <Text style={styles.infoText}>Status: {profile.status || 'user'}</Text>
-            <Text style={styles.infoText}>Interests: {profile.interests?.length || 0}</Text>
+        {/* User Status Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>User Status</Text>
+          
+          <View style={styles.statusContainer}>
+            <Text style={styles.label}>Current Status:</Text>
+            <Text style={styles.currentStatus}>{currentStatus}</Text>
           </View>
-        )}
-      </View>
-    </ScrollView>
+
+          <Text style={styles.label}>Change Status To:</Text>
+          <View style={styles.statusButtonsContainer}>
+            {USER_STATUSES.map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.statusButton,
+                  newStatus === status && styles.statusButtonSelected,
+                ]}
+                onPress={() => setNewStatus(status)}
+              >
+                <Text
+                  style={[
+                    styles.statusButtonText,
+                    newStatus === status && styles.statusButtonTextSelected,
+                  ]}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, styles.primaryButton]}
+            onPress={updateStatus}
+            disabled={loading || newStatus === currentStatus}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Update Status</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Server Actions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Server Actions</Text>
+          
+          <TouchableOpacity
+            style={[styles.button, styles.warningButton]}
+            onPress={rebuildMatchingIndex}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Rebuild Matching Index</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Feature Flags Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Feature Flags</Text>
+          
+          <View style={styles.toggleContainer}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Google Maps Place Details</Text>
+              <Text style={styles.toggleDescription}>
+                Enable Google Maps for place details and photos (100 requests/day limit)
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                googleMapsEnabled && styles.toggleButtonActive,
+              ]}
+              onPress={toggleGoogleMaps}
+            >
+              <Text style={[
+                styles.toggleButtonText,
+                googleMapsEnabled && styles.toggleButtonTextActive,
+              ]}>
+                {googleMapsEnabled ? 'ON' : 'OFF'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* User Info Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>User Info</Text>
+          {profile && (
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoText}>UID: {profile.uid}</Text>
+              <Text style={styles.infoText}>Email: {profile.email}</Text>
+              <Text style={styles.infoText}>Username: {profile.username}</Text>
+              <Text style={styles.infoText}>Status: {profile.status || 'user'}</Text>
+              <Text style={styles.infoText}>Interests: {profile.interests?.length || 0}</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradientContainer: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+  },
+  container: {
+    // flex: 1,
+    // backgroundColor: theme.colors.primary.light, //was #F5F5F5
   },
   contentContainer: {
     paddingBottom: 40,
@@ -369,36 +380,40 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: 'InterExtraBold',
+    fontWeight: '800',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: 'InterBold',
+    fontWeight: '700',
+    color: theme.colors.secondary.light, //was #666
   },
   section: {
     padding: 20,
     marginTop: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     marginHorizontal: 20,
     borderRadius: 10,
-    shadowColor: '#000',
+    shadowColor: theme.colors.primary.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 3.84,
     elevation: 5,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontFamily: 'InterBold',
+    fontWeight: '700',
+    color: theme.colors.secondary.dark, //was #333
     marginBottom: 16,
   },
   button: {
@@ -411,24 +426,25 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   primaryButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium, //was #4CAF50
   },
   secondaryButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: theme.colors.support.success, //was #2196F3
   },
   dangerButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: theme.colors.support.error, //was #F44336
   },
   warningButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: theme.colors.support.warning, //was #FF9800
   },
   infoButton: {
-    backgroundColor: '#9E9E9E',
+    backgroundColor: theme.colors.primary.light, //was 9E9E9E
   },
   buttonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   statusContainer: {
     flexDirection: 'row',
@@ -436,19 +452,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.neutrallight.white, //was #F5F5F5
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.neutrallight.lightgray,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    fontFamily: 'InterSemiBold',
+    color: theme.colors.primary.dark, //was #333
+    marginTop: 8,
     marginBottom: 8,
   },
   currentStatus: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.support.success, //was #4CAF50
     textTransform: 'capitalize',
   },
   statusButtonsContainer: {
@@ -462,31 +483,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.neutrallight.lightgray, //was #E0E0E0
+    backgroundColor: theme.colors.neutrallight.white, //was #fff
     alignItems: 'center',
   },
   statusButtonSelected: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
+    borderColor: theme.colors.support.success, //was #4CAF50
   },
   statusButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    fontFamily: "InterSemiBold",
+    color: theme.colors.primary.dark, //was #333
     textTransform: 'capitalize',
   },
   statusButtonTextSelected: {
-    color: '#fff',
+    color: theme.colors.neutrallight.white, //was #fff
   },
   infoContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.neutrallight.white, //was #F5F5F5
     padding: 12,
     borderRadius: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.secondary.medium, //was #666
     marginBottom: 4,
     fontFamily: 'monospace',
   },
@@ -495,7 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.neutrallight.white, //was #F5F5F5
     borderRadius: 8,
     marginBottom: 12,
   },
@@ -506,32 +528,36 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    fontFamily: "InterSemiBold",
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 4,
   },
   toggleDescription: {
     fontSize: 12,
-    color: '#666',
+    fontFamily: "Inter",
+    fontWeight: "400",
+    color: theme.colors.primary.medium, //was #666
   },
   toggleButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: theme.colors.neutrallight.lightgray, //was #E0E0E0
     borderWidth: 2,
-    borderColor: '#BDBDBD',
+    borderColor: theme.colors.neutrallight.gray, //was #BDBDBD
   },
   toggleButtonActive: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
+    borderColor: theme.colors.support.success, //was #4CAF50
   },
   toggleButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    fontFamily: "InterSemiBold",
+    color: theme.colors.primary.medium, //was #666
   },
   toggleButtonTextActive: {
-    color: '#fff',
+    color: theme.colors.neutrallight.white, //was #fff
   },
 });
 

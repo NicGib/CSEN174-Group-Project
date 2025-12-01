@@ -24,6 +24,8 @@ import {
   Message,
 } from '@/src/lib/messagingService';
 
+import { theme } from "@/app/theme";
+
 export default function MessageScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -206,7 +208,7 @@ export default function MessageScreen() {
           <View style={styles.placeholder} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <ActivityIndicator size="large" color={theme.colors.support.success} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
@@ -313,7 +315,7 @@ export default function MessageScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.secondary.light, //was #F5F5F5
   },
   header: {
     flexDirection: 'row',
@@ -321,9 +323,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   backButton: {
     padding: 8,
@@ -332,8 +334,9 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: theme.colors.support.success, //was #4CAF50
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   profileHeader: {
     flexDirection: 'row',
@@ -345,32 +348,37 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   avatarText: {
     fontSize: 18,
-    color: '#fff',
-    fontWeight: 'bold',
+    color: theme.colors.secondary.light, //was #fff
+    fontWeight: '700',
+    fontFamily: 'InterBold',
   },
   profileInfo: {
     flex: 1,
   },
   name: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
   },
   username: {
     fontSize: 12,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
     flex: 1,
     textAlign: 'center',
   },
@@ -385,7 +393,9 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   emptyContainer: {
     flex: 1,
@@ -394,7 +404,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   messagesContainer: {
     flex: 1,
@@ -410,24 +422,30 @@ const styles = StyleSheet.create({
   },
   myMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
     borderBottomRightRadius: 4,
   },
   otherMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E0E0E0',
+    backgroundColor: theme.colors.secondary.light, //was #E0E0E0
     borderBottomLeftRadius: 4,
   },
   myMessageText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
+    fontWeight: '400',
+    fontFamily: 'Inter',
   },
   otherMessageText: {
-    color: '#333',
+    color: theme.colors.primary.dark, //was #333
     fontSize: 16,
+    fontWeight: '400',
+    fontFamily: 'Inter',
   },
   messageTime: {
     fontSize: 11,
+    fontWeight: '400',
+    fontFamily: 'Inter',
     marginTop: 4,
   },
   myMessageTime: {
@@ -435,7 +453,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   otherMessageTime: {
-    color: '#666',
+    color: theme.colors.primary.medium, //was #666
     textAlign: 'left',
   },
   emptyMessagesContainer: {
@@ -446,41 +464,46 @@ const styles = StyleSheet.create({
   },
   emptyMessagesText: {
     fontSize: 16,
-    color: '#999',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #999
     textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: theme.colors.secondary.dark, //was #E0E0E0
     alignItems: 'flex-end',
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: theme.colors.secondary.dark, //was #E0E0E0
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     maxHeight: 100,
     marginRight: 8,
     fontSize: 16,
+    fontWeight: '400',
+    fontFamily: 'Inter',
   },
   sendButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
   },
   sendButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.neutraldark.medium, // was #ccc
   },
   sendButtonText: {
-    color: '#fff',
+    color: theme.colors.secondary.light, //was #fff
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
 });
 
