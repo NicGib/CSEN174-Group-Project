@@ -7,6 +7,7 @@ import { View, ActivityIndicator } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useFonts } from "expo-font";
+import { Text, TextInput } from "react-native";
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
@@ -76,6 +77,13 @@ export default function RootLayout() {
       </GestureHandlerRootView>
     );
   }
+
+  // APPLY GLOBAL DEFAULT FONTS
+  Text.defaultProps = Text.defaultProps || {};
+  Text.defaultProps.style = [{ fontFamily: "Inter" }];
+
+  TextInput.defaultProps = TextInput.defaultProps || {};
+  TextInput.defaultProps.style = [{ fontFamily: "Inter" }];
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
