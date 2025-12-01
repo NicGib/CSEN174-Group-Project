@@ -120,7 +120,7 @@ def parse_arguments():
     
     return parser.parse_args()
 
-def build_map(lat, lng, zoom, style, sanitized_title, osm_geojson, trailheads_geojson):
+def build_map(lat, lng, zoom, style, sanitized_title, osm_geojson, trailheads_geojson, state_trails_geojson=None):
     """
     Pure-ish function that builds and returns a folium.Map object
     from already-fetched data.
@@ -197,6 +197,37 @@ def build_map(lat, lng, zoom, style, sanitized_title, osm_geojson, trailheads_ge
                 folium.Popup(html_content, max_width=320).add_to(hiking_fg)
     else:
         print("No OSM hiking data found in the specified area.")
+
+    # California merged trail network layer
+    if state_trails_geojson and state_trails_geojson.get("features"):
+        cal_trails_fg = folium.FeatureGroup(name="CA Trail Atlas").add_to(m)
+
+        def ca_trail_style(feature):
+            return {
+                "weight": 3,
+                "opacity": 0.85,
+                "color": "#2D6CDF",  # blue tone to stand apart from OSM
+            }
+
+        popup = folium.features.GeoJsonPopup(
+            fields=["trail_name", "trail_system", "length_miles", "segment_count"],
+            aliases=["Trail:", "System:", "Approx. miles:", "Segments:"],
+            localize=True,
+            labels=True,
+        )
+        tooltip = folium.features.GeoJsonTooltip(
+            fields=["trail_name", "length_miles"],
+            aliases=["Trail:", "Miles:"],
+        )
+
+        folium.GeoJson(
+            state_trails_geojson,
+            name="California State Trails",
+            style_function=ca_trail_style,
+            highlight_function=lambda _: {"color": "#FFD166", "weight": 5},
+            tooltip=tooltip,
+            popup=popup,
+        ).add_to(cal_trails_fg)
 
     # Trailheads / entryways with enhanced clustering
     create_enhanced_trailhead_markers(trailheads_geojson, m)

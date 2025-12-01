@@ -88,4 +88,7 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
-/infra
+
+# Infrastructure
+infra/
+backend/maps/data/*.geojson

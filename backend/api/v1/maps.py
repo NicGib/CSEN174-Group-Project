@@ -16,6 +16,7 @@ from ...maps.download_map import (
     validate_radius,
     sanitize_title
 )
+from ...maps.trails_dataset import get_california_trails_geojson
 
 router = APIRouter(prefix="/maps", tags=["maps"])
 
@@ -59,12 +60,14 @@ def generate_map(
         # Fetch data
         osm_geojson = fetch_osm_data(lat, lng, radius)
         trailheads_geojson = fetch_trailheads_data(lat, lng, radius)
+        state_trails_geojson = get_california_trails_geojson(lat, lng, radius)
         
         # Log data fetch results for debugging
         trail_count = len(osm_geojson.get("features", [])) if osm_geojson else 0
         trailhead_count = len(trailheads_geojson.get("features", [])) if trailheads_geojson else 0
+        state_trail_count = len(state_trails_geojson.get("features", [])) if state_trails_geojson else 0
         print(f"[API] Map request: lat={lat}, lng={lng}, radius={radius}km")
-        print(f"[API] Fetched {trail_count} trails and {trailhead_count} trailheads")
+        print(f"[API] Fetched {trail_count} OSM trails, {trailhead_count} trailheads, {state_trail_count} CA merged trails")
         
         # Build map
         m = build_map(
@@ -74,7 +77,8 @@ def generate_map(
             style=style,
             sanitized_title=sanitized_title,
             osm_geojson=osm_geojson,
-            trailheads_geojson=trailheads_geojson
+            trailheads_geojson=trailheads_geojson,
+            state_trails_geojson=state_trails_geojson,
         )
         
         # Convert map to HTML string
@@ -104,12 +108,14 @@ def generate_map_post(request: MapRequest):
         # Fetch data
         osm_geojson = fetch_osm_data(request.lat, request.lng, request.radius)
         trailheads_geojson = fetch_trailheads_data(request.lat, request.lng, request.radius)
+        state_trails_geojson = get_california_trails_geojson(request.lat, request.lng, request.radius)
         
         # Log data fetch results for debugging
         trail_count = len(osm_geojson.get("features", [])) if osm_geojson else 0
         trailhead_count = len(trailheads_geojson.get("features", [])) if trailheads_geojson else 0
+        state_trail_count = len(state_trails_geojson.get("features", [])) if state_trails_geojson else 0
         print(f"[API] Map request (POST): lat={request.lat}, lng={request.lng}, radius={request.radius}km")
-        print(f"[API] Fetched {trail_count} trails and {trailhead_count} trailheads")
+        print(f"[API] Fetched {trail_count} OSM trails, {trailhead_count} trailheads, {state_trail_count} CA merged trails")
         
         # Build map
         m = build_map(
@@ -119,7 +125,8 @@ def generate_map_post(request: MapRequest):
             style=request.style,
             sanitized_title=sanitized_title,
             osm_geojson=osm_geojson,
-            trailheads_geojson=trailheads_geojson
+            trailheads_geojson=trailheads_geojson,
+            state_trails_geojson=state_trails_geojson,
         )
         
         # Convert map to HTML string
@@ -129,4 +136,3 @@ def generate_map_post(request: MapRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating map: {str(e)}")
-
