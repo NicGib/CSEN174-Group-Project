@@ -5,12 +5,13 @@ import { Redirect } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/constants/theme";
+// import { Colors } from "@/constants/theme";
+import { theme, navColors, styles } from "../theme";
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const colors = navColors[colorScheme ?? "light"];
 
   if (loading) {
     return (
@@ -30,6 +31,11 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.tabIconSelected,
         tabBarInactiveTintColor: colors.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: colors.background,   // ⭐ use your theme value
+          borderTopColor: "transparent",        // (optional) cleaner look
+          height: 60,                           // (optional) larger bar
+        },
       }}
     >
       <Tabs.Screen

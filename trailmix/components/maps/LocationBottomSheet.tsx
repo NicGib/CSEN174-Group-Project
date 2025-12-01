@@ -16,6 +16,8 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { PlaceDetails } from '@/src/lib/locationService';
 
+import { theme } from "@/app/theme";
+
 interface LocationBottomSheetProps {
   visible: boolean;
   location: { latitude: number; longitude: number; address?: string; placeDetails?: PlaceDetails };
@@ -244,14 +246,14 @@ export function LocationBottomSheet({
                     )}
                     {location.placeDetails.phone && (
                       <View style={styles.detailRow}>
-                        <MaterialIcons name="phone" size={20} color="#5f6368" />
+                        <MaterialIcons name="phone" size={20} color={theme.colors.secondary.medium} />
                         <Text style={styles.detailText}>{location.placeDetails.phone}</Text>
                       </View>
                     )}
                     
                     {location.placeDetails.website && (
                       <View style={styles.detailRow}>
-                        <MaterialIcons name="language" size={20} color="#5f6368" />
+                        <MaterialIcons name="language" size={20} color={theme.colors.secondary.medium} />
                         <Text style={styles.detailText} numberOfLines={1}>{location.placeDetails.website}</Text>
                       </View>
                     )}
@@ -261,7 +263,7 @@ export function LocationBottomSheet({
                         <MaterialIcons 
                           name={location.placeDetails.opening_hours.open_now ? "check-circle" : "cancel"} 
                           size={20} 
-                          color={location.placeDetails.opening_hours.open_now ? "#4caf50" : "#f44336"} 
+                          color={location.placeDetails.opening_hours.open_now ? theme.colors.support.success : theme.colors.support.error} 
                         />
                         <Text style={styles.detailText}>
                           {location.placeDetails.opening_hours.open_now ? "Open now" : "Closed"}
@@ -271,7 +273,7 @@ export function LocationBottomSheet({
                     
                     {location.placeDetails.rating && (
                       <View style={styles.detailRow}>
-                        <MaterialIcons name="star" size={20} color="#ffa726" />
+                        <MaterialIcons name="star" size={20} color={theme.colors.support.warning} />
                         <Text style={styles.detailText}>{location.placeDetails.rating.toFixed(1)} / 5.0</Text>
                       </View>
                     )}
@@ -290,7 +292,7 @@ export function LocationBottomSheet({
                           <MaterialIcons
                             name={categoriesExpanded ? "expand-less" : "expand-more"}
                             size={20}
-                            color="#5f6368"
+                            color={theme.colors.secondary.medium}
                           />
                         </TouchableOpacity>
                         {categoriesExpanded ? (
@@ -353,9 +355,9 @@ export function LocationBottomSheet({
                   onPress={onOpenInMaps}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcons name="map" size={24} color="#4285f4" />
+                  <MaterialIcons name="map" size={24} color={theme.colors.support.success} />
                   <Text style={styles.actionButtonText}>Open in Maps</Text>
-                  <MaterialIcons name="chevron-right" size={24} color="#5f6368" />
+                  <MaterialIcons name="chevron-right" size={24} color={theme.colors.secondary.medium} />
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -380,7 +382,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     overflow: 'hidden',
     height: Math.round(SCREEN_HEIGHT * 0.9), // Give it a real height so ScrollView can flex
-    backgroundColor: '#fff', // Make it opaque (avoid translucent stacking issues)
+    backgroundColor: theme.colors.neutrallight.white, //was #fff // Make it opaque (avoid translucent stacking issues)
     zIndex: 10, // iOS stacking
     ...Platform.select({
       android: { elevation: 10 }, // Android stacking
@@ -390,7 +392,7 @@ const styles = StyleSheet.create({
     flex: 1, // Let children (the ScrollView) fill the sheet
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
   },
   content: {
     flex: 1,
@@ -416,7 +418,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 180,
     borderRadius: 12,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.neutrallight.white, //was #f0f0f0
   },
   handleContainer: {
     paddingVertical: 12,
@@ -427,23 +429,26 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#c0c0c0',
+    backgroundColor: theme.colors.secondary.medium, //was #c0c0c0
     borderRadius: 2,
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#202124',
+    fontFamily: 'InterSemiBold',
+    color: theme.colors.secondary.dark, //was #202124
     marginBottom: 4,
   },
   addressLine: {
     fontSize: 14,
-    color: '#5f6368',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.secondary.medium, //was #5f6368
     marginBottom: 2,
   },
   coordinates: {
     fontSize: 12,
-    color: '#9aa0a6',
+    color: theme.colors.secondary.medium, //was 9aa0a6
     marginTop: 8,
     marginBottom: 16,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -459,7 +464,9 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: '#202124',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.secondary.dark, //was #202124
     flex: 1,
   },
   categoriesSection: {
@@ -474,7 +481,8 @@ const styles = StyleSheet.create({
   categoriesHeaderText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#202124',
+    fontFamily: 'InterSemiBold',
+    color: theme.colors.secondary.dark, //was #202124
   },
   categoriesContainer: {
     flexDirection: 'row',
@@ -489,25 +497,30 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 12,
-    color: '#1967d2',
+    fontFamily: 'Inter',
+    color: theme.colors.support.success, //was #1967d2
     fontWeight: '500',
   },
   moreCategoriesText: {
     fontSize: 12,
-    color: '#5f6368',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.secondary.medium, //was #5f6368
     fontStyle: 'italic',
     alignSelf: 'center',
     paddingVertical: 6,
   },
   noCategoriesText: {
     fontSize: 12,
-    color: '#9aa0a6',
+    fontFamily: 'Inter',
+    fontWeight: '400',
+    color: theme.colors.secondary.medium, //was 9aa0a6
     fontStyle: 'italic',
   },
   debugRow: {
     marginBottom: 8,
     padding: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.neutrallight.white, //was #f5f5f5
     borderRadius: 4,
   },
   debugText: {
@@ -518,20 +531,21 @@ const styles = StyleSheet.create({
   rawDataContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.neutrallight.white, //was #f8f9fa
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e8eaed',
+    borderColor: theme.colors.neutrallight.lightgray, //was #e8eaed
   },
   rawDataLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#5f6368',
+    fontFamily: 'InterSemiBold',
+    color: theme.colors.secondary.medium, //was #5f6368
     marginBottom: 6,
   },
   rawDataText: {
     fontSize: 10,
-    color: '#202124',
+    color: theme.colors.secondary.dark, //was #202124
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     lineHeight: 14,
   },
@@ -540,15 +554,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.neutrallight.white, //was #f8f9fa
     borderRadius: 12,
     marginTop: 8,
   },
   actionButtonText: {
     flex: 1,
     fontSize: 16,
+    fontFamily: 'Inter',
     fontWeight: '500',
-    color: '#202124',
+    color: theme.colors.secondary.dark, //was #202124
     marginLeft: 16,
   },
 });

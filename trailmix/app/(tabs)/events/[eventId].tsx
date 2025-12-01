@@ -14,6 +14,8 @@ import { listEvents, EventDetails, removeAttendee } from '@/src/api/events';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { auth } from '@/src/lib/firebase';
 
+import { theme } from "@/app/theme";
+
 interface AttendeeProfile {
   uid: string;
   profile: UserProfile | null;
@@ -121,7 +123,7 @@ export default function EventAttendeesScreen() {
           <View style={styles.placeholder} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <ActivityIndicator size="large" color={theme.colors.support.success} />
           <Text style={styles.loadingText}>Loading attendees...</Text>
         </View>
       </View>
@@ -202,7 +204,7 @@ export default function EventAttendeesScreen() {
                       style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
                     >
                       {isRemoving ? (
-                        <ActivityIndicator size="small" color="#b00020" />
+                        <ActivityIndicator size="small" color={theme.colors.support.error} />
                       ) : (
                         <Text style={styles.removeButtonText}>Remove</Text>
                       )}
@@ -252,7 +254,7 @@ export default function EventAttendeesScreen() {
                     style={[styles.removeButton, isRemoving && styles.removeButtonDisabled]}
                   >
                     {isRemoving ? (
-                      <ActivityIndicator size="small" color="#b00020" />
+                      <ActivityIndicator size="small" color={theme.colors.support.error} />
                     ) : (
                       <Text style={styles.removeButtonText}>Remove</Text>
                     )}
@@ -270,7 +272,7 @@ export default function EventAttendeesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.secondary.light, //was #f5f5f5
   },
   header: {
     flexDirection: 'row',
@@ -278,9 +280,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   backButton: {
     padding: 8,
@@ -289,13 +291,15 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: theme.colors.support.success, //was #4CAF50
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
     flex: 1,
     textAlign: 'center',
   },
@@ -304,14 +308,15 @@ const styles = StyleSheet.create({
   },
   subheader: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.secondary.medium, //was #E0E0E0
   },
   subheaderText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.primary.medium, //was #666
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   loadingContainer: {
     flex: 1,
@@ -321,7 +326,9 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   emptyContainer: {
     flex: 1,
@@ -330,7 +337,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
   },
   listContent: {
     padding: 16,
@@ -338,13 +347,13 @@ const styles = StyleSheet.create({
   attendeeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: theme.colors.primary.dark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 3.84,
     elevation: 5,
     justifyContent: 'space-between',
@@ -353,38 +362,45 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.support.success, //was #4CAF50
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   attendeeAvatarText: {
     fontSize: 20,
-    color: '#fff',
-    fontWeight: 'bold',
+    color: theme.colors.secondary.light, //was #fff
+    fontWeight: '700',
+    fontFamily: 'InterBold',
   },
   attendeeInfo: {
     flex: 1,
   },
   attendeeName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 4,
   },
   attendeeUsername: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
     marginBottom: 4,
   },
   attendeeBio: {
     fontSize: 12,
-    color: '#999',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #999
   },
   arrowText: {
     fontSize: 18,
-    color: '#4CAF50',
+    color: theme.colors.support.success, //was #4CAF50
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     marginLeft: 8,
   },
   removeButton: {
@@ -393,14 +409,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffebee',
     borderRadius: 6,
     marginLeft: 8,
+    borderColor: theme.colors.support.error,
+    borderWidth: 1,
   },
   removeButtonDisabled: {
     opacity: 0.5,
   },
   removeButtonText: {
-    color: '#b00020',
+    color: theme.colors.support.error, //was #b00020
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
 });
 

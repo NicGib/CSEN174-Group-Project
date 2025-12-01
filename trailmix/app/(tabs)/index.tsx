@@ -41,7 +41,7 @@ export default function HomeScreen() {
     <LinearGradient colors={theme.colors.gradient.lightgreen} style={styles.homeContainer}>
       <View style={styles.homeHeader}>
         <Text style={styles.homeTitle}>Welcome to TrailMix!</Text>
-        <Text style={styles.homeSubtitle}>Your hiking companion</Text>
+        <Text style={styles.homeSubtitle}>Your new hiking companion.</Text>
       </View>
 
       <View style={styles.homeUserInfo}>
@@ -65,11 +65,14 @@ export default function HomeScreen() {
           <Text style={styles.primaryButtonText}>Go to Maps</Text>
         </TouchableOpacity>
 
-        <Button 
-          title="Sign Out" 
+        <TouchableOpacity
+          style={[styles.baseButton, styles.secondaryButton]}
           onPress={handleSignOut}
-          color="#ff4444"
-        />
+        >
+          <Text style={[styles.secondaryButtonText]}>
+            Sign Out
+          </Text>
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );

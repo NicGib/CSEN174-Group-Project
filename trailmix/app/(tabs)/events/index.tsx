@@ -9,6 +9,8 @@ import { PlaceDetails } from "@/src/lib/locationService";
 import { getUserProfile, UserProfile } from "@/src/lib/userService";
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+import { theme } from "@/app/theme";
+
 export default function EventsScreen() {
   const router = useRouter();
   const [events, setEvents] = React.useState<EventDetails[]>([]);
@@ -294,18 +296,18 @@ export default function EventsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.secondary.light }}>
       <View style={{ 
         flexDirection: "row", 
         justifyContent: "space-between", 
         alignItems: "center",
         padding: 20,
         paddingTop: 60,
-        backgroundColor: '#fff',
+        backgroundColor: theme.colors.primary.light,
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
+        borderBottomColor: theme.colors.primary.medium,
       }}>
-        <Text style={{ fontSize: 20, fontWeight: "bold", color: '#333' }}>Events</Text>
+        <Text style={{ fontSize: 20, fontFamily: "InterBold", fontWeight: "700", color: theme.colors.primary.dark }}>Events</Text>
         {canCreateEvents && (
           <TouchableOpacity 
             onPress={() => {
@@ -320,16 +322,16 @@ export default function EventsScreen() {
               setEventDate(future);
               setShowCreate(true);
             }} 
-            style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#2d6cdf", borderRadius: 8 }}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.colors.support.success, borderRadius: 8 }}
           >
-            <Text style={{ color: "white", fontWeight: "600" }}>Create</Text>
+            <Text style={{ color: theme.colors.neutrallight.white, fontFamily: "InterSemiBold", fontWeight: "600" }}>Create</Text>
           </TouchableOpacity>
         )}
       </View>
       
       <View style={{ flex: 1, padding: 16, gap: 12 }}>
 
-      {err ? <Text style={{ color: "#b00020" }}>{err}</Text> : null}
+      {err ? <Text style={{ color: theme.colors.support.error }}>{err}</Text> : null}
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -348,16 +350,16 @@ export default function EventsScreen() {
             return (
               <TouchableOpacity
                 onPress={() => router.push(`/(tabs)/events/${item.event_id}`)}
-                style={{ padding: 12, borderWidth: 1, borderColor: "#ddd", borderRadius: 10, marginBottom: 10, backgroundColor: "#fff" }}
+                style={{ padding: 12, borderWidth: 1, borderColor: theme.colors.secondary.dark, borderRadius: 10, marginBottom: 10, backgroundColor: theme.colors.secondary.light }}
               >
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "700" }}>{item.title}</Text>
+                    <Text style={{ fontSize: 16, fontFamily: "InterBold", fontWeight: "700" }}>{item.title}</Text>
                     <Text style={{ marginTop: 4 }}>{item.location} • {new Date(item.event_date).toLocaleString()}</Text>
-                    <Text numberOfLines={3} style={{ marginTop: 4, color: "#555" }}>{item.description}</Text>
-                    <Text style={{ marginTop: 4, color: "#333" }}>Difficulty: {item.difficulty_level} • {item.attendees?.length || 0}/{item.max_attendees} going</Text>
+                    <Text numberOfLines={3} style={{ marginTop: 4, color: theme.colors.secondary.medium }}>{item.description}</Text>
+                    <Text style={{ marginTop: 4, color: theme.colors.secondary.dark }}>Difficulty: {item.difficulty_level} • {item.attendees?.length || 0}/{item.max_attendees} going</Text>
                     {isOrganizer && (
-                      <Text style={{ marginTop: 4, color: "#2d6cdf", fontWeight: "600", fontSize: 12 }}>You are the organizer</Text>
+                      <Text style={{ marginTop: 4, color: theme.colors.support.success, fontWeight: "600", fontFamily: "InterSemiBold", fontSize: 12 }}>You are the organizer</Text>
                     )}
                   </View>
                   {isOrganizer && (
@@ -368,7 +370,7 @@ export default function EventsScreen() {
                       }}
                       style={{ padding: 8, marginLeft: 8 }}
                     >
-                      <Text style={{ color: "#b00020", fontSize: 20 }}>🗑️</Text>
+                      <Text style={{ color: theme.colors.support.error, fontSize: 20 }}>🗑️</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -380,9 +382,9 @@ export default function EventsScreen() {
                         e.stopPropagation();
                         onLeave(item.event_id);
                       }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#b00020", borderRadius: 8 }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.colors.support.error, borderRadius: 8 }}
                     >
-                      <Text style={{ color: "white", fontWeight: "600" }}>Leave</Text>
+                      <Text style={{ color: theme.colors.neutrallight.white, fontFamily: "InterSemiBold", fontWeight: "600" }}>Leave</Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
@@ -390,9 +392,9 @@ export default function EventsScreen() {
                         e.stopPropagation();
                         onJoin(item.event_id);
                       }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#1e8e3e", borderRadius: 8 }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.colors.primary.medium, borderRadius: 8 }}
                     >
-                      <Text style={{ color: "white", fontWeight: "600" }}>Join</Text>
+                      <Text style={{ color: theme.colors.neutrallight.white, fontFamily: "InterSemiBold", fontWeight: "600" }}>Join</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -612,28 +614,30 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
+    fontFamily: "InterBold",
     fontWeight: "700",
     marginBottom: 8,
   },
   errorContainer: {
     backgroundColor: "#ffebee",
     borderWidth: 1,
-    borderColor: "#b00020",
+    borderColor: theme.colors.support.error,
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
   },
   errorText: {
-    color: "#b00020",
+    color: theme.colors.support.error,
     fontSize: 14,
     fontWeight: "500",
+    fontFamily: 'Inter',
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: theme.colors.secondary.medium, //was #ccc
     borderRadius: 8,
     padding: 10,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.secondary.light, //was #fff
   },
   textArea: {
     minHeight: 80,
@@ -644,9 +648,10 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   label: {
+    fontFamily: 'InterSemiBold',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.primary.dark, //was #333
     marginBottom: 8,
   },
   dateTimeContainer: {
@@ -659,14 +664,15 @@ const styles = StyleSheet.create({
   dateTimeButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: theme.colors.secondary.medium, //was #ccc
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
   },
   dateTimeText: {
+    fontFamily: 'Inter',
     fontSize: 15,
-    color: '#202124',
+    color: theme.colors.primary.dark, //was #202124
   },
   timeButtonRow: {
     flexDirection: 'row',
@@ -681,15 +687,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateButton: {
-    backgroundColor: '#e8f0fe',
+    backgroundColor: theme.colors.primary.light, //was #e8f0fe
   },
   timeButtonStyle: {
-    backgroundColor: '#f1f3f4',
+    backgroundColor: theme.colors.primary.light, //was #f1f3f4
   },
   timeButtonText: {
+    fontFamily: 'InterSemiBold',
     fontSize: 14,
     fontWeight: '600',
-    color: '#1967d2',
+    color: theme.colors.support.success, //was 1967d2
   },
   difficultyContainer: {
     marginVertical: 8,
@@ -704,38 +711,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.secondary.medium, //was #ccc
+    backgroundColor: theme.colors.neutrallight.white, //was #fff
     alignItems: 'center',
   },
   difficultyButtonActive: {
-    backgroundColor: '#2d6cdf',
-    borderColor: '#2d6cdf',
+    backgroundColor: theme.colors.support.success,
+    borderColor: theme.colors.support.success,
   },
   difficultyButtonText: {
+    fontFamily: 'InterSemiBold',
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.primary.dark, //was #333
   },
   difficultyButtonTextActive: {
-    color: '#fff',
+    color: theme.colors.neutrallight.white, //was #fff
   },
   pickerContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.secondary.light, //was #f8f9fa
     borderRadius: 8,
   },
   pickerDoneButton: {
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#2d6cdf',
+    backgroundColor: theme.colors.support.success,
     borderRadius: 8,
     alignItems: 'center',
   },
   pickerDoneText: {
-    color: '#fff',
+    color: theme.colors.neutrallight.white, //was #fff
+    fontFamily: 'InterSemiBold',
     fontWeight: '600',
     fontSize: 16,
   },
@@ -752,13 +761,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButton: {
-    backgroundColor: "#2d6cdf",
+    backgroundColor: theme.colors.support.success,
   },
   cancelButton: {
-    backgroundColor: "#999",
+    backgroundColor: theme.colors.primary.medium, //was #999
   },
   buttonText: {
-    color: "white",
+    color: theme.colors.neutrallight.white, //was #fff
+    fontFamily: 'InterSemiBold',
     fontWeight: "600",
   },
 });

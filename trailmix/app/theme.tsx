@@ -252,7 +252,26 @@ export const theme = {
             fontWeight: '600',
         },
     },
-}
+};
+
+export const navColors = {
+  light: {
+    text: theme.colors.primary.light,
+    background: theme.colors.secondary.light,
+    tint: theme.colors.primary.dark,
+    icon: theme.colors.primary.light,
+    tabIconDefault: theme.colors.primary.light,
+    tabIconSelected: theme.colors.primary.dark,
+  },
+  dark: {
+    text: theme.colors.secondary.light,
+    background: theme.colors.primary.dark,
+    tint: theme.colors.secondary.medium,
+    icon: theme.colors.secondary.light,
+    tabIconDefault: theme.colors.secondary.light,
+    tabIconSelected: theme.colors.secondary.medium,
+  },
+};
 
 // Create StyleSheet for better performance
 export const styles = StyleSheet.create({
@@ -272,11 +291,14 @@ export const styles = StyleSheet.create({
     landingTitle: {
         fontSize: 40,
         fontWeight: '700',
-        color: '#FCFAE1',
+        fontFamily: 'InterBold',
+        color: theme.colors.secondary.light, //was #FCFAE1
     },
     landingSubtitle: {
         fontSize: 16,
-        color: '#ffffff99',
+        fontFamily: 'Inter',
+        fontWeight: '400',
+        color: theme.colors.secondary.medium, //was #ffffff99
         textAlign: 'center',
         marginTop: 8,
     },
@@ -297,7 +319,7 @@ export const styles = StyleSheet.create({
     authContainer: {
         flex: 1,
         padding: 24,
-        backgroundColor: '#f5f5f5',
+        // backgroundColor: theme.colors.secondary.light, //was #f5f5f5
     },
     authHeader: {
         alignItems: 'center',
@@ -307,12 +329,15 @@ export const styles = StyleSheet.create({
     authTitle: {
         fontSize: theme.typography.heading.h1.fontSize,
         fontWeight: theme.typography.heading.h1.fontWeight,
+        fontFamily: theme.typography.heading.h1.fontFamily,
         color: theme.colors.secondary.light,
         marginBottom: 8,
     },
     authSubtitle: {
         fontSize: 16,
-        color: '#7f8c8d',
+        fontFamily: 'Inter',
+        fontWeight: '400',
+        color: theme.colors.secondary.medium, //was #7f8c8d
         textAlign: 'center',
     },
     authFormLabel: {
@@ -320,6 +345,7 @@ export const styles = StyleSheet.create({
         fontSize: theme.typography.heading.h5.fontSize,
         fontWeight: theme.typography.heading.h5.fontWeight,
         lineHeight: theme.typography.heading.h5.lineHeight,
+        fontFamily: theme.typography.heading.h5.fontFamily,
         marginBottom: 8
     },
     authForm: {
@@ -334,13 +360,17 @@ export const styles = StyleSheet.create({
         marginBottom: 8,
         borderColor: theme.colors.secondary.light,
         fontSize: 16,
+        fontFamily: 'Inter',
+        fontWeight: '400',
     },
     authButtonContainer: {
     },
     authFooterText: {
-        color: '#7f8c8d',
+        color: theme.colors.secondary.medium, //was #7f8c8d
         textAlign: 'center',
         fontSize: 12,
+        fontFamily: 'Inter',
+        fontWeight: '400',
         marginBottom: 20,
     },
     
@@ -348,7 +378,7 @@ export const styles = StyleSheet.create({
     homeContainer: {
         flex: 1,
         padding: 24,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: theme.colors.neutrallight.white, //was #f5f5f5
     },
     homeHeader: {
         alignItems: 'center',
@@ -356,43 +386,51 @@ export const styles = StyleSheet.create({
         marginTop: 60,
     },
     homeTitle: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: '700',
-        color: '#2c3e50',
+        fontFamily: 'InterBold',
+        color: theme.colors.secondary.light, //was #2c3e50
         marginBottom: 8,
     },
     homeSubtitle: {
         fontSize: 16,
-        color: '#7f8c8d',
+        fontFamily: 'Inter',
+        fontWeight: '400',
+        color: theme.colors.secondary.medium, //was #7f8c8d
     },
     homeUserInfo: {
-        backgroundColor: 'white',
+        backgroundColor: theme.colors.secondary.light,
         padding: 20,
         borderRadius: 12,
         marginBottom: 30,
-        shadowColor: '#000',
+        shadowColor: theme.colors.primary.dark,
         shadowOffset: {
             width: 0,
             height: 2,
         },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.4,
         shadowRadius: 3.84,
         elevation: 5,
     },
     homeStatusText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#27ae60',
+        fontFamily: 'InterSemiBold',
+        color: theme.colors.primary.dark, //was #27ae60
         marginBottom: 8,
     },
     homeEmailText: {
         fontSize: 16,
-        color: '#2c3e50',
+        fontFamily: 'Inter',
+        fontWeight: '400',
+        color: theme.colors.secondary.dark, //was #2c3e50
         marginBottom: 4,
     },
     homeUserIdText: {
         fontSize: 14,
-        color: '#7f8c8d',
+        fontFamily: 'Inter',
+        fontWeight: '400',
+        color: theme.colors.secondary.medium, //was #7f8c8d
     },
     homeActions: {
         marginTop: 'auto',
@@ -412,7 +450,7 @@ export const styles = StyleSheet.create({
     
     // Explore page styles
     exploreHeaderImage: {
-        color: '#808080',
+        color: theme.colors.neutrallight.gray, //was #808080
         bottom: -90,
         left: -35,
         position: 'absolute',
@@ -449,30 +487,42 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     primaryButton: {
-        backgroundColor: '#FCFAE1',
+        backgroundColor: theme.colors.secondary.light, //was #FCFAE1
+        shadowColor: theme.colors.primary.dark,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.4,
+        shadowRadius: 3.84,
     },
     secondaryButton: {
         backgroundColor: 'transparent',
         borderWidth: 2,
-        borderColor: '#FCFAE1',
+        borderRadius: 40,
+        borderColor: theme.colors.secondary.light, //was #FCFAE1
     },
     primaryButtonText: {
-        color: '#29361B',
+        color: theme.colors.primary.dark, //was #29361B
         fontSize: 16,
+        fontFamily: 'InterSemiBold',
         fontWeight: '600',
     },
     secondaryButtonText: {
-        color: '#FCFAE1',
+        color: theme.colors.secondary.light, //was #FCFAE1
         fontSize: 16,
+        fontFamily: 'InterSemiBold',
         fontWeight: '600',
     },
     
     // Common styles
     errorText: {
-        color: '#e74c3c',
+        color: theme.colors.support.error, //was #e74c3c
         textAlign: 'center',
         marginBottom: 10,
         fontSize: 14,
+        fontFamily: 'Inter',
+        fontWeight: '400',
     },
     loader: {
         marginTop: 20,

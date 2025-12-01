@@ -7,6 +7,8 @@ import { useMapBuilder } from '@/hooks/useMapBuilder';
 import { SavedMap } from '@/src/lib/mapStorage';
 import { getLocalFileUri } from '@/src/utils/mapFileStorage';
 
+import { theme } from "@/app/theme";
+
 /**
  * Download/Builder Screen
  * Handles map builder form and saved maps management
@@ -87,7 +89,7 @@ export default function DownloadScreen() {
   }, []);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.secondary.light }}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Download Maps</Text>
@@ -132,7 +134,7 @@ export default function DownloadScreen() {
               style={[styles.currentLocationButton, isGettingLocation && styles.currentLocationButtonDisabled]}
             >
               {isGettingLocation ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={theme.colors.secondary.light} />
               ) : (
                 <Text style={styles.currentLocationButtonText}>📍 Current</Text>
               )}
@@ -226,14 +228,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary.light, //was #fff
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: theme.colors.primary.medium, //was #E0E0E0
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    fontFamily: 'InterBold',
+    color: theme.colors.primary.dark, //was #333
   },
   headerButtons: {
     flexDirection: 'row',
@@ -242,18 +245,19 @@ const styles = StyleSheet.create({
   headerButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#4285f4',
+    backgroundColor: theme.colors.support.success, //was #4285f4
     borderRadius: 8,
   },
   headerButtonActive: {
-    backgroundColor: '#4285f4',
+    backgroundColor: theme.colors.support.success, //was #4285f4
   },
   headerButtonText: {
-    color: 'white',
+    color: theme.colors.secondary.light, //was #fff
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   headerButtonTextActive: {
-    color: 'white',
+    color: theme.colors.secondary.light, //was #fff
   },
   formContainer: {
     padding: 16,
@@ -267,36 +271,39 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: theme.colors.secondary.dark, //was #ccc
     borderRadius: 8,
     padding: 8,
+    color: theme.colors.secondary.medium,
   },
   currentLocationButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary.medium, //was #4CAF50
     borderRadius: 8,
     minWidth: 80,
     alignItems: 'center',
   },
   currentLocationButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.neutraldark.medium, //was #ccc
   },
   currentLocationButtonText: {
-    color: 'white',
+    color: theme.colors.secondary.light, //was #fff
     fontWeight: '600',
     fontSize: 12,
+    fontFamily: 'InterSemiBold',
   },
   saveButton: {
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#2d6cdf',
+    backgroundColor: theme.colors.support.success, //was #2d6cdf
     borderRadius: 8,
   },
   saveButtonText: {
     color: 'white',
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
   },
   emptyState: {
     flex: 1,
@@ -306,7 +313,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     textAlign: 'center',
-    color: '#555',
+    color: theme.colors.primary.medium, //was #555
   },
   listContent: {
     padding: 12,
@@ -314,24 +321,29 @@ const styles = StyleSheet.create({
   mapCard: {
     padding: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.secondary.medium, //was #ddd
     borderRadius: 10,
     marginBottom: 10,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.secondary.light, //was #fff
   },
   mapCardTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'InterBold',
     marginBottom: 4,
   },
   mapCardDetails: {
     fontSize: 12,
-    color: '#666',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #666
     marginBottom: 4,
   },
   mapCardDate: {
     fontSize: 11,
-    color: '#999',
+    fontWeight: '400',
+    fontFamily: 'Inter',
+    color: theme.colors.primary.medium, //was #999
     marginBottom: 8,
   },
   mapCardActions: {
@@ -342,15 +354,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#2d6cdf',
+    backgroundColor: theme.colors.support.success, //was #2d6cdf
     borderRadius: 8,
   },
   mapCardButtonDelete: {
-    backgroundColor: '#b00020',
+    backgroundColor: theme.colors.support.error, //was #b00020
   },
   mapCardButtonText: {
-    color: 'white',
+    color: theme.colors.secondary.light, //was #fff
     fontWeight: '600',
+    fontFamily: 'InterSemiBold',
     textAlign: 'center',
   },
 });
