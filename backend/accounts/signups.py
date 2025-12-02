@@ -8,10 +8,24 @@ import os
 import unicodedata
 from dotenv import load_dotenv
 
+from ..utils.logging_utils import get_logger, log_user_action
+from ..exceptions import (
+    ValidationError,
+    ConflictError,
+    NotFoundError,
+    AuthenticationError,
+    AuthorizationError,
+    ExternalServiceError,
+    DatabaseError,
+    ConfigurationError
+)
+
 # Load environment variables
 # Look for .env file in the secrets directory
 env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'secrets', '.env')
 load_dotenv(env_path)
+
+logger = get_logger(__name__)
 
 # ─────────────────────────
 # 1. Firebase initialization
@@ -21,10 +35,10 @@ FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_API_KEY")
 
 # Validate environment variables
 if not FIREBASE_WEB_API_KEY:
-    raise ValueError("FIREBASE_API_KEY not found in environment variables. Please check your .env file.")
+    raise ConfigurationError("FIREBASE_API_KEY not found in environment variables. Please check your .env file.")
 
 if not os.path.exists(SERVICE_ACCOUNT_PATH):
-    raise FileNotFoundError(f"Service account key file not found: {SERVICE_ACCOUNT_PATH}. Please download it from Firebase Console.")
+    raise ConfigurationError(f"Service account key file not found: {SERVICE_ACCOUNT_PATH}. Please download it from Firebase Console.")
 
 if not firebase_admin._apps:
     cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
@@ -98,7 +112,8 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
             "birthday": None
         }
         doc_ref.set(profile_data)
-        print(f"New user profile created for {name} ({username})")
+        logger.info(f"New user profile created for {name} ({username})")
+        log_user_action(logger, uid, "create_profile", {"name": name, "username": username})
         
         # Automatically add new user to matching index if they have interests
         # (Note: new users start with empty interests, so this won't do anything initially)
@@ -108,14 +123,15 @@ def create_user_profile(uid: str, name: str, username: str, email: str):
             service.update_user_in_index(uid, profile_data)
         except Exception as e:
             # Don't fail user creation if index update fails
-            print(f"Warning: Failed to add user to matching index: {e}")
+            logger.warning(f"Failed to add user to matching index: {e}", exc_info=True)
     else:
         # Update existing user's last login
         doc_ref.update({
             "lastLoginAt": firestore.SERVER_TIMESTAMP,
             "isActive": True
         })
-        print(f"Last login updated for existing user {name} ({username})")
+        logger.info(f"Last login updated for existing user {name} ({username})")
+        log_user_action(logger, uid, "login", {"name": name, "username": username})
 
 # ─────────────────────────
 # 3. SIGN UP FLOW
@@ -124,53 +140,61 @@ def signup_with_email_password(name: str, username: str, email: str, password: s
     """
     Backend version of frontend signup functionality.
     Creates Firebase Auth user and Firestore profile.
+    
+    Raises:
+        ValidationError: If input validation fails
+        ConflictError: If username is already taken
+        ExternalServiceError: If Firebase Auth fails
+        DatabaseError: If Firestore operations fail
     """
-    print(f"\nStarting signup process for {name} ({email})")
+    logger.info(f"Starting signup process for {name} ({email})")
     
     # Validation (matching frontend validation)
     if not name.strip() or not username.strip() or not email.strip() or not password:
-        raise ValueError("Please fill in all fields")
+        raise ValidationError("Please fill in all fields")
     
     if len(password) < 6:
-        raise ValueError("Password must be at least 6 characters long")
+        raise ValidationError("Password must be at least 6 characters long")
     
     # Check if username already exists
     if _is_username_taken(username):
-        raise ValueError(f"Username '{username}' is already taken. Please choose another one.")
+        raise ConflictError(f"Username '{username}' is already taken. Please choose another one.")
 
     try:
-        print("Creating Firebase Auth user...")
+        logger.debug("Creating Firebase Auth user...")
         user_record = auth.create_user(
             email=email.strip().lower(),
             password=password,
             display_name=name.strip(),
         )
-        print(f"Firebase Auth user created: {user_record.uid}")
+        logger.info(f"Firebase Auth user created: {user_record.uid}")
     except Exception as e:
-        print(f"Firebase Auth creation failed: {e}")
-        raise RuntimeError(f"Signup failed: {e}")
+        logger.error(f"Firebase Auth creation failed: {e}", exc_info=True)
+        raise ExternalServiceError(f"Signup failed: {e}", service_name="Firebase Auth")
 
     uid = user_record.uid
 
     try:
-        print("Creating Firestore user profile...")
+        logger.debug("Creating Firestore user profile...")
         create_user_profile(
             uid=uid,
             name=name,
             username=username,
             email=email,
         )
-        print("Firestore profile created successfully")
+        logger.info("Firestore profile created successfully")
     except Exception as e:
-        print(f"Firestore profile creation failed: {e}")
+        logger.error(f"Firestore profile creation failed: {e}", exc_info=True)
         # Clean up: delete the auth user to avoid stranded account
         try:
             auth.delete_user(uid)
-            print("Cleaned up Firebase Auth user due to Firestore failure")
-        except:
-            pass
-        raise RuntimeError(f"Profile creation failed (user rolled back): {e}")
+            logger.info("Cleaned up Firebase Auth user due to Firestore failure")
+        except Exception as cleanup_error:
+            logger.error(f"Failed to cleanup Firebase Auth user: {cleanup_error}", exc_info=True)
+        raise DatabaseError(f"Profile creation failed (user rolled back): {e}")
 
+    log_user_action(logger, uid, "signup", {"email": email, "username": username})
+    
     return {
         "success": True,
         "uid": uid,
@@ -188,12 +212,17 @@ def login_with_email_password(email: str, password: str):
     """
     Backend version of frontend login functionality.
     Authenticates user and updates last login in Firestore.
+    
+    Raises:
+        ValidationError: If input validation fails
+        AuthenticationError: If authentication fails
+        ExternalServiceError: If Firebase API call fails
     """
-    print(f"\nStarting login process for {email}")
+    logger.info(f"Starting login process for {email}")
     
     # Validation (matching frontend validation)
     if not email.strip() or not password:
-        raise ValueError("Please enter both email and password")
+        raise ValidationError("Please enter both email and password")
 
     endpoint = (
         "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
@@ -207,26 +236,28 @@ def login_with_email_password(email: str, password: str):
     }
 
     try:
-        print("Authenticating with Firebase...")
+        logger.debug("Authenticating with Firebase...")
         resp = requests.post(endpoint, json=payload)
 
         if resp.status_code != 200:
             data = resp.json()
             err_code = data.get("error", {}).get("message", "UNKNOWN")
-            print(f"Authentication failed: {err_code}")
-            raise RuntimeError(f"Login failed: {err_code}")
+            logger.warning(f"Authentication failed: {err_code}")
+            raise AuthenticationError(f"Login failed: {err_code}")
 
         data = resp.json()
         uid = data["localId"]
-        print(f"Authentication successful: {uid}")
+        logger.info(f"Authentication successful: {uid}")
 
     except requests.RequestException as e:
-        print(f"Network error during authentication: {e}")
-        raise RuntimeError(f"Login failed: Network error - {e}")
+        logger.error(f"Network error during authentication: {e}", exc_info=True)
+        raise ExternalServiceError(f"Login failed: Network error - {e}", service_name="Firebase Auth")
+    except AuthenticationError:
+        raise
 
     # Get user profile to update last login
     try:
-        print("Updating user profile in Firestore...")
+        logger.debug("Updating user profile in Firestore...")
         doc_ref = _user_doc_ref(uid)
         user_doc = doc_ref.get()
         
@@ -242,9 +273,9 @@ def login_with_email_password(email: str, password: str):
                 username=username,
                 email=email,
             )
-            print(f"Last login updated for {name} ({username})")
+            logger.debug(f"Last login updated for {name} ({username})")
         else:
-            print("User profile not found in Firestore, creating basic profile...")
+            logger.info("User profile not found in Firestore, creating basic profile...")
             # Create a basic profile if it doesn't exist
             create_user_profile(
                 uid=uid,
@@ -254,10 +285,12 @@ def login_with_email_password(email: str, password: str):
             )
             
     except Exception as e:
-        print(f"Login succeeded but Firestore update failed: {e}")
+        logger.warning(f"Login succeeded but Firestore update failed: {e}", exc_info=True)
         # Don't fail the login if Firestore update fails
         pass
 
+    log_user_action(logger, uid, "login", {"email": email})
+    
     return {
         "success": True,
         "uid": uid,
@@ -273,7 +306,12 @@ def login_with_email_password(email: str, password: str):
 # 5. Additional utility functions
 # ─────────────────────────
 def get_user_profile(uid: str):
-    """Get user profile from Firestore"""
+    """
+    Get user profile from Firestore.
+    
+    Returns:
+        User profile dict or None if not found
+    """
     try:
         doc_ref = _user_doc_ref(uid)
         doc = doc_ref.get()
@@ -282,26 +320,29 @@ def get_user_profile(uid: str):
         else:
             return None
     except Exception as e:
-        print(f"Error getting user profile: {e}")
+        logger.error(f"Error getting user profile: {e}", exc_info=True)
         return None
 
 def list_all_users():
     """List all users in the database (for testing)"""
     try:
         users = db.collection("users").stream()
-        print("\nAll users in database:")
-        print("-" * 50)
+        user_list = []
         for user in users:
             data = user.to_dict()
-            print(f"UID: {user.id}")
-            print(f"Name: {data.get('name', 'N/A')}")
-            print(f"Username: {data.get('username', 'N/A')}")
-            print(f"Email: {data.get('email', 'N/A')}")
-            print(f"Created: {data.get('createdAt', 'N/A')}")
-            print(f"Last Login: {data.get('lastLoginAt', 'N/A')}")
-            print("-" * 50)
+            user_list.append({
+                "uid": user.id,
+                "name": data.get('name', 'N/A'),
+                "username": data.get('username', 'N/A'),
+                "email": data.get('email', 'N/A'),
+                "created": data.get('createdAt', 'N/A'),
+                "last_login": data.get('lastLoginAt', 'N/A')
+            })
+        logger.info(f"Listed {len(user_list)} users")
+        return user_list
     except Exception as e:
-        print(f"Error listing users: {e}")
+        logger.error(f"Error listing users: {e}", exc_info=True)
+        return []
 
 # ─────────────────────────
 # 7. Profile Management Functions
@@ -317,7 +358,7 @@ def update_user_profile(uid: str, updates: dict):
         doc = doc_ref.get()
         
         if not doc.exists:
-            raise ValueError(f"User profile not found for UID: {uid}")
+            raise NotFoundError(f"User profile not found for UID: {uid}")
         
         # Check if interests are being updated (for matching index update)
         interests_changed = "interests" in updates and updates["interests"] is not None
@@ -388,10 +429,11 @@ def update_user_profile(uid: str, updates: dict):
                 firestore_updates["homeAddress"] = home_addr
         
         if not firestore_updates:
-            raise ValueError("No valid fields to update")
+            raise ValidationError("No valid fields to update")
         
         doc_ref.update(firestore_updates)
-        print(f"Profile updated for user {uid}")
+        logger.info(f"Profile updated for user {uid}")
+        log_user_action(logger, uid, "update_profile", {"fields": list(firestore_updates.keys())})
         
         # Automatically update matching index if interests changed
         if interests_changed:
@@ -405,15 +447,17 @@ def update_user_profile(uid: str, updates: dict):
                     service.update_user_in_index(uid, updated_profile)
             except Exception as e:
                 # Don't fail the profile update if index update fails
-                print(f"Warning: Failed to update matching index for user {uid}: {e}")
+                logger.warning(f"Failed to update matching index for user {uid}: {e}", exc_info=True)
         
         # Return updated profile
         updated_doc = doc_ref.get()
         return updated_doc.to_dict() if updated_doc.exists else None
         
+    except (NotFoundError, ValidationError):
+        raise
     except Exception as e:
-        print(f"Error updating user profile: {e}")
-        raise RuntimeError(f"Failed to update profile: {e}")
+        logger.error(f"Error updating user profile: {e}", exc_info=True)
+        raise DatabaseError(f"Failed to update profile: {e}")
 
 def promote_user_to_wayfarer(admin_uid: str, target_uid: str):
     """
@@ -432,42 +476,42 @@ def promote_user_to_wayfarer(admin_uid: str, target_uid: str):
         admin_doc = admin_ref.get()
         
         if not admin_doc.exists:
-            raise ValueError(f"Admin user not found: {admin_uid}")
+            raise NotFoundError(f"Admin user not found: {admin_uid}")
         
         admin_data = admin_doc.to_dict()
         admin_status = admin_data.get("status", "user")
         
         if admin_status != "admin":
-            raise ValueError("Only admins can promote users to wayfarer")
+            raise AuthorizationError("Only admins can promote users to wayfarer")
         
         # Check if target user exists
         target_ref = _user_doc_ref(target_uid)
         target_doc = target_ref.get()
         
         if not target_doc.exists:
-            raise ValueError(f"Target user not found: {target_uid}")
+            raise NotFoundError(f"Target user not found: {target_uid}")
         
         # Update target user's status
         target_ref.update({"status": "wayfarer"})
-        print(f"User {target_uid} promoted to wayfarer by admin {admin_uid}")
+        logger.info(f"User {target_uid} promoted to wayfarer by admin {admin_uid}")
+        log_user_action(logger, admin_uid, "promote_to_wayfarer", {"target_uid": target_uid})
         
         # Return updated profile
         updated_doc = target_ref.get()
         return updated_doc.to_dict() if updated_doc.exists else None
         
-    except ValueError as e:
-        raise ValueError(str(e))
+    except (NotFoundError, AuthorizationError):
+        raise
     except Exception as e:
-        print(f"Error promoting user to wayfarer: {e}")
-        raise RuntimeError(f"Failed to promote user: {e}")
+        logger.error(f"Error promoting user to wayfarer: {e}", exc_info=True)
+        raise DatabaseError(f"Failed to promote user: {e}")
 
 # ─────────────────────────
 # 6. Interactive CLI test
 # ─────────────────────────
 def interactive_test():
-    """Interactive testing interface"""
-    print("TrailMix Backend Authentication Test")
-    print("=" * 50)
+    """Interactive testing interface (for CLI testing only)"""
+    logger.info("TrailMix Backend Authentication Test")
     
     while True:
         print("\nChoose an option:")
@@ -517,7 +561,13 @@ def interactive_test():
                 print("\nUser not found")
                 
         elif choice == "4":
-            list_all_users()
+            users = list_all_users()
+            for user in users:
+                print(f"\nUID: {user['uid']}")
+                print(f"Name: {user['name']}")
+                print(f"Username: {user['username']}")
+                print(f"Email: {user['email']}")
+                print("-" * 50)
             
         elif choice == "5":
             print("\nGoodbye!")
@@ -527,8 +577,7 @@ def interactive_test():
             print("\nInvalid choice. Please try again.")
 
 if __name__ == "__main__":
-    print("Starting TrailMix Backend Authentication System")
-    print("=" * 60)
+    logger.info("Starting TrailMix Backend Authentication System")
     
     # Run interactive test
     interactive_test()

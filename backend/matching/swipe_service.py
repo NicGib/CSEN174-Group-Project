@@ -8,6 +8,11 @@ from datetime import datetime
 from typing import List, Dict, Optional, Set
 import os
 
+from ..utils.logging_utils import get_logger, log_user_action
+from ..exceptions import ValidationError, DatabaseError
+
+logger = get_logger(__name__)
+
 # Initialize Firestore
 try:
     from backend.accounts.signups import db
@@ -41,10 +46,10 @@ class SwipeService:
             Dictionary with success status and match information
         """
         if user_uid == target_uid:
-            raise ValueError("Cannot swipe on yourself")
+            raise ValidationError("Cannot swipe on yourself")
         
         if action not in ["like", "pass"]:
-            raise ValueError("Action must be 'like' or 'pass'")
+            raise ValidationError("Action must be 'like' or 'pass'")
         
         try:
             # Record the swipe
@@ -70,15 +75,20 @@ class SwipeService:
                         # Create mutual match record
                         self._create_match(user_uid, target_uid)
             
+            log_user_action(logger, user_uid, "swipe", {"target_uid": target_uid, "action": action, "is_match": is_match})
+            logger.debug(f"User {user_uid} swiped {action} on {target_uid}, match: {is_match}")
+            
             return {
                 "success": True,
                 "is_match": is_match,
                 "message": "It's a match!" if is_match else "Swipe recorded"
             }
             
+        except ValidationError:
+            raise
         except Exception as e:
-            print(f"Error recording swipe: {e}")
-            raise RuntimeError(f"Failed to record swipe: {e}")
+            logger.error(f"Error recording swipe: {e}", exc_info=True)
+            raise DatabaseError(f"Failed to record swipe: {e}")
     
     def _create_match(self, uid1: str, uid2: str):
         """Create a mutual match record."""
@@ -94,10 +104,11 @@ class SwipeService:
                 "is_active": True,
             })
             
-            print(f"Match created between {uid1} and {uid2}")
+            logger.info(f"Match created between {uid1} and {uid2}")
+            log_user_action(logger, uid1, "match_created", {"other_uid": uid2})
         except Exception as e:
-            print(f"Error creating match: {e}")
-            raise
+            logger.error(f"Error creating match: {e}", exc_info=True)
+            raise DatabaseError(f"Failed to create match: {e}")
     
     def get_swiped_users(self, user_uid: str) -> Set[str]:
         """
@@ -120,7 +131,7 @@ class SwipeService:
             
             return swiped_uids
         except Exception as e:
-            print(f"Error getting swiped users: {e}")
+            logger.error(f"Error getting swiped users: {e}", exc_info=True)
             return set()
     
     def get_matches(self, user_uid: str) -> List[Dict]:
@@ -160,7 +171,7 @@ class SwipeService:
             
             return matches
         except Exception as e:
-            print(f"Error getting matches: {e}")
+            logger.error(f"Error getting matches: {e}", exc_info=True)
             return []
     
     def has_swiped(self, user_uid: str, target_uid: str) -> bool:
@@ -169,7 +180,7 @@ class SwipeService:
             swipe_ref = db.collection("swipes").document(f"{user_uid}_{target_uid}")
             return swipe_ref.get().exists
         except Exception as e:
-            print(f"Error checking swipe: {e}")
+            logger.error(f"Error checking swipe: {e}", exc_info=True)
             return False
 
 

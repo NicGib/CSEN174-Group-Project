@@ -10,6 +10,8 @@ Based on: "L2AP: Fast Cosine Similarity Search With Prefix L2-Norm Bounds"
 
 import math
 import heapq
+import time
+import traceback
 from typing import Dict, List, Tuple, Optional, Set
 from collections import defaultdict
 import firebase_admin
@@ -17,6 +19,11 @@ from firebase_admin import firestore
 import os
 import json
 from pathlib import Path
+
+from ..utils.logging_utils import get_logger
+from ..exceptions import NotFoundError, DatabaseError
+
+logger = get_logger(__name__)
 
 # Initialize Firestore - use the same db instance from signups
 try:
@@ -365,7 +372,7 @@ class ProfileMatchingService:
         """
         self.index_built = False
         self.index_built_at = None
-        print("Index invalidated - will rebuild on next query")
+        logger.debug("Index invalidated - will rebuild on next query")
     
     def update_user_in_index(self, uid: str, profile_data: dict):
         """
@@ -406,7 +413,7 @@ class ProfileMatchingService:
             for feature in vector.keys():
                 if feature in self.index.inverted_index:
                     self.index.inverted_index[feature].sort(key=lambda x: x[1], reverse=True)
-            print(f"Updated user {uid} in matching index")
+            logger.debug(f"Updated user {uid} in matching index")
         
         # Invalidate index when interests change to ensure all queries see the latest data
         # This forces a rebuild on the next query, ensuring consistency
@@ -418,8 +425,7 @@ class ProfileMatchingService:
         Rebuild the index from all user profiles in Firestore.
         """
         try:
-            import time
-            print("Building L2AP index from Firestore...")
+            logger.info("Building L2AP index from Firestore...")
             users_ref = db.collection("users")
             profiles = {}
             users_with_interests = 0
@@ -433,21 +439,19 @@ class ProfileMatchingService:
                 interests = profile_data.get("interests", [])
                 if interests and len(interests) > 0:
                     users_with_interests += 1
-                    print(f"[DEBUG] User {uid} has {len(interests)} interests: {interests}")
+                    logger.debug(f"User {uid} has {len(interests)} interests: {interests}")
                 else:
                     users_without_interests += 1
             
-            print(f"[DEBUG] Found {len(profiles)} total users: {users_with_interests} with interests, {users_without_interests} without")
+            logger.debug(f"Found {len(profiles)} total users: {users_with_interests} with interests, {users_without_interests} without")
             
             self.index.build_index(profiles)
             self.index_built = True
             self.index_built_at = time.time()
-            print(f"Index built successfully with {len(self.index.doc_ids)} profiles (users with valid interest vectors)")
+            logger.info(f"Index built successfully with {len(self.index.doc_ids)} profiles (users with valid interest vectors)")
         except Exception as e:
-            import traceback
-            print(f"Error building index: {e}")
-            print(traceback.format_exc())
-            raise
+            logger.error(f"Error building index: {e}", exc_info=True)
+            raise DatabaseError(f"Failed to build matching index: {e}")
     
     def _should_rebuild_index(self) -> bool:
         """
@@ -458,10 +462,9 @@ class ProfileMatchingService:
         
         # Rebuild if index is older than TTL
         if self.index_built_at is not None:
-            import time
             age_seconds = time.time() - self.index_built_at
             if age_seconds > self.index_ttl_seconds:
-                print(f"Index is {age_seconds:.1f}s old (TTL: {self.index_ttl_seconds}s), rebuilding...")
+                logger.debug(f"Index is {age_seconds:.1f}s old (TTL: {self.index_ttl_seconds}s), rebuilding...")
                 return True
         
         return False
@@ -495,33 +498,31 @@ class ProfileMatchingService:
             user_doc = user_ref.get()
             
             if not user_doc.exists:
-                print(f"[DEBUG] User {query_uid} not found in Firestore")
+                logger.warning(f"User {query_uid} not found in Firestore")
                 return []
             
             profile_data = user_doc.to_dict()
             interests = profile_data.get("interests", [])
-            print(f"[DEBUG] User {query_uid} has {len(interests)} interests: {interests}")
+            logger.debug(f"User {query_uid} has {len(interests)} interests: {interests}")
             
             query_vector = get_profile_vector(profile_data)
             
             if not query_vector:
-                print(f"[DEBUG] User {query_uid} has no valid interests vector (empty or invalid interests)")
+                logger.debug(f"User {query_uid} has no valid interests vector (empty or invalid interests)")
                 return []
             
-            print(f"[DEBUG] Query vector has {len(query_vector)} features: {list(query_vector.keys())[:5]}")
-            print(f"[DEBUG] Index contains {len(self.index.doc_ids)} users")
+            logger.debug(f"Query vector has {len(query_vector)} features: {list(query_vector.keys())[:5]}")
+            logger.debug(f"Index contains {len(self.index.doc_ids)} users")
             
             # Find matches
             exclude_set = {query_uid} if exclude_self else set()
             matches = l2ap_knn(query_vector, self.index, k, t_min, exclude_set)
             
-            print(f"[DEBUG] L2AP returned {len(matches)} matches")
+            logger.debug(f"L2AP returned {len(matches)} matches")
             return matches
             
         except Exception as e:
-            import traceback
-            print(f"[ERROR] Error finding matches: {e}")
-            print(traceback.format_exc())
+            logger.error(f"Error finding matches: {e}", exc_info=True)
             return []
     
     def find_matches_by_interests(

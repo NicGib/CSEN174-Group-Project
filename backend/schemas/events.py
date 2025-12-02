@@ -5,7 +5,7 @@ from datetime import datetime
 class EventCreate(BaseModel):
     title: constr(strip_whitespace=True, min_length=1)
     location: constr(strip_whitespace=True, min_length=1)
-    event_date: str  # accept "YYYY-MM-DD" or ISO string; your service parses it
+    event_date: str  # accepts "YYYY-MM-DD" or ISO string; parsing happens in the service layer
     description: Optional[str] = ""
     max_attendees: int = Field(default=20, gt=0)
     difficulty_level: str = Field(default="beginner", pattern="^(beginner|intermediate|advanced)$")
