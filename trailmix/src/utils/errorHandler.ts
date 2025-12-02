@@ -63,6 +63,9 @@ export function getUserFriendlyErrorMessage(error: Error | ApiError): string {
 
     switch (error.type) {
       case ErrorType.NETWORK:
+        if (error.status === 530) {
+          return 'Backend server is unreachable. Please ensure the backend is running and the tunnel is connected. Try restarting the Docker containers.';
+        }
         return 'Unable to connect to the server. Please check your internet connection and ensure the backend server is running.';
       case ErrorType.AUTHENTICATION:
         return 'Authentication failed. Please log in again.';
@@ -202,6 +205,10 @@ export async function handleApiResponse(
   let errorType: ErrorType;
   if (response.status === 401 || response.status === 403) {
     errorType = ErrorType.AUTHENTICATION;
+  } else if (response.status === 530) {
+    // Cloudflare 530 error: Origin is unreachable
+    errorType = ErrorType.NETWORK;
+    errorMessage = 'Backend server is unreachable through the tunnel. The backend may be down or the tunnel connection may be broken.';
   } else if (response.status >= 500) {
     errorType = ErrorType.SERVER;
   } else if (response.status >= 400) {

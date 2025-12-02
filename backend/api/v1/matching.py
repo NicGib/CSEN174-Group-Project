@@ -158,6 +158,7 @@ def get_potential_matches(
         exclude_set = set()
         if exclude_swiped:
             exclude_set = swipe_service.get_swiped_users(uid)
+            print(f"[DEBUG] User {uid} has swiped on {len(exclude_set)} users: {exclude_set}")
         
         # Find matches using L2AP
         matches = service.find_matches(
@@ -167,10 +168,15 @@ def get_potential_matches(
             exclude_self=True
         )
         
+        print(f"[DEBUG] Found {len(matches)} matches for user {uid} (before filtering)")
+        for match_uid, similarity in matches[:5]:  # Log first 5
+            print(f"[DEBUG]   Match: {match_uid} with similarity {similarity:.4f}")
+        
         # Filter out swiped users and enrich with profile data
         potential_matches = []
         for match_uid, similarity in matches:
             if match_uid in exclude_set:
+                print(f"[DEBUG]   Excluding {match_uid} (already swiped)")
                 continue
             
             if len(potential_matches) >= limit:
@@ -189,12 +195,18 @@ def get_potential_matches(
                     hiking_level=profile.get("hikingLevel"),
                     similarity=similarity
                 ))
+            else:
+                print(f"[DEBUG]   Skipping {match_uid} (no profile found)")
         
+        print(f"[DEBUG] Returning {len(potential_matches)} potential matches")
         return GetPotentialMatchesResponse(
             matches=potential_matches,
             has_more=len(matches) > len(potential_matches)
         )
     except Exception as e:
+        import traceback
+        print(f"[ERROR] Error getting potential matches: {e}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error getting potential matches: {str(e)}")
 
 @router.post("/swipe/{uid}", response_model=SwipeResponse)
@@ -256,4 +268,72 @@ def get_mutual_matches(uid: str):
         return GetMatchesResponse(matches=match_results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting matches: {str(e)}")
+
+@router.get("/debug/user/{uid}")
+def debug_user_matching(uid: str):
+    """
+    Debug endpoint to check user's matching status.
+    Shows interests, vector, index status, and potential matches.
+    """
+    try:
+        from ...matching.profile_matching import get_profile_vector, normalize_interests
+        from firebase_admin import firestore
+        
+        # Get user profile
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return {"error": f"User {uid} not found"}
+        
+        profile_data = user_doc.to_dict()
+        interests = profile_data.get("interests", [])
+        query_vector = get_profile_vector(profile_data)
+        
+        # Get matching service
+        service = get_matching_service()
+        swipe_service = get_swipe_service()
+        
+        # Get swiped users
+        swiped_users = swipe_service.get_swiped_users(uid)
+        
+        # Get matches
+        matches = service.find_matches(
+            query_uid=uid,
+            k=50,
+            t_min=0.0,
+            exclude_self=True
+        )
+        
+        # Check if user is in index
+        in_index = uid in service.index.doc_ids
+        
+        return {
+            "uid": uid,
+            "name": profile_data.get("name"),
+            "username": profile_data.get("username"),
+            "interests": interests,
+            "interests_count": len(interests),
+            "query_vector": query_vector,
+            "query_vector_size": len(query_vector),
+            "in_index": in_index,
+            "index_total_users": len(service.index.doc_ids),
+            "swiped_users": list(swiped_users),
+            "swiped_count": len(swiped_users),
+            "matches_found": len(matches),
+            "matches": [
+                {
+                    "uid": match_uid,
+                    "similarity": float(similarity),
+                    "swiped": match_uid in swiped_users
+                }
+                for match_uid, similarity in matches[:10]  # First 10
+            ]
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
 

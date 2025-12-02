@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Redirect } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { auth } from '@/src/lib/firebase';
 import { pushRoute } from '@/src/lib/navigationStack';
+import { normalizeProfilePictureUrl } from '@/src/utils/imageUpload';
 
 import { LinearGradient } from "expo-linear-gradient";
 import { theme } from "@/app/theme";
@@ -23,6 +25,13 @@ export default function ViewProfileScreen() {
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
+
+  // If viewing own profile via [uid] route, redirect to index
+  const currentUserUid = auth.currentUser?.uid;
+  if (uid && currentUserUid && uid === currentUserUid) {
+    return <Redirect href="/(tabs)/profile" />;
+  }
 
   const handleBack = () => {
     // Navigate back to previous screen
@@ -54,6 +63,8 @@ export default function ViewProfileScreen() {
       }
 
       setProfile(userProfile);
+      // Normalize profile picture URL to use current API base URL
+      setProfilePictureUri(normalizeProfilePictureUrl(userProfile.profilePicture));
     } catch (error: any) {
       console.error('Error loading profile:', error);
       Alert.alert('Error', error.message || 'Failed to load profile');
@@ -133,8 +144,19 @@ export default function ViewProfileScreen() {
         <View style={styles.content}>
           <View style={styles.profileHeader}>
             <View style={styles.avatar}>
-              {profile.profilePicture ? (
-                <Text style={styles.avatarText}>📷</Text>
+              {profilePictureUri ? (
+                <Image
+                  source={{ uri: profilePictureUri }}
+                  style={styles.avatarImage}
+                  onError={(error) => {
+                    console.error('Error loading profile picture:', error.nativeEvent.error);
+                    console.error('Failed URL:', profilePictureUri);
+                    setProfilePictureUri(null); // Fall back to placeholder
+                  }}
+                  onLoad={() => {
+                    console.log('Profile picture loaded successfully:', profilePictureUri);
+                  }}
+                />
               ) : (
                 <Text style={styles.avatarText}>
                   {(profile.name || profile.username || '?')[0].toUpperCase()}
@@ -295,6 +317,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   avatarText: {
     fontSize: 40,

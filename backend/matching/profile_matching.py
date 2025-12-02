@@ -422,18 +422,31 @@ class ProfileMatchingService:
             print("Building L2AP index from Firestore...")
             users_ref = db.collection("users")
             profiles = {}
+            users_with_interests = 0
+            users_without_interests = 0
             
             for doc in users_ref.stream():
                 profile_data = doc.to_dict()
                 uid = doc.id
                 profiles[uid] = profile_data
+                
+                interests = profile_data.get("interests", [])
+                if interests and len(interests) > 0:
+                    users_with_interests += 1
+                    print(f"[DEBUG] User {uid} has {len(interests)} interests: {interests}")
+                else:
+                    users_without_interests += 1
+            
+            print(f"[DEBUG] Found {len(profiles)} total users: {users_with_interests} with interests, {users_without_interests} without")
             
             self.index.build_index(profiles)
             self.index_built = True
             self.index_built_at = time.time()
-            print(f"Index built successfully with {len(self.index.doc_ids)} profiles")
+            print(f"Index built successfully with {len(self.index.doc_ids)} profiles (users with valid interest vectors)")
         except Exception as e:
+            import traceback
             print(f"Error building index: {e}")
+            print(traceback.format_exc())
             raise
     
     def _should_rebuild_index(self) -> bool:
@@ -482,22 +495,33 @@ class ProfileMatchingService:
             user_doc = user_ref.get()
             
             if not user_doc.exists:
+                print(f"[DEBUG] User {query_uid} not found in Firestore")
                 return []
             
             profile_data = user_doc.to_dict()
+            interests = profile_data.get("interests", [])
+            print(f"[DEBUG] User {query_uid} has {len(interests)} interests: {interests}")
+            
             query_vector = get_profile_vector(profile_data)
             
             if not query_vector:
+                print(f"[DEBUG] User {query_uid} has no valid interests vector (empty or invalid interests)")
                 return []
+            
+            print(f"[DEBUG] Query vector has {len(query_vector)} features: {list(query_vector.keys())[:5]}")
+            print(f"[DEBUG] Index contains {len(self.index.doc_ids)} users")
             
             # Find matches
             exclude_set = {query_uid} if exclude_self else set()
             matches = l2ap_knn(query_vector, self.index, k, t_min, exclude_set)
             
+            print(f"[DEBUG] L2AP returned {len(matches)} matches")
             return matches
             
         except Exception as e:
-            print(f"Error finding matches: {e}")
+            import traceback
+            print(f"[ERROR] Error finding matches: {e}")
+            print(traceback.format_exc())
             return []
     
     def find_matches_by_interests(

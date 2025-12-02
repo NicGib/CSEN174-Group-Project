@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   FlatList,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useSegments } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import {
   MessagingWebSocket,
   Message,
 } from '@/src/lib/messagingService';
+import { normalizeProfilePictureUrl } from '@/src/utils/imageUpload';
 
 import { theme } from "@/app/theme";
 
@@ -37,6 +39,7 @@ export default function MessageScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [profilePictureUri, setProfilePictureUri] = useState<string | null>(null);
   const wsRef = useRef<MessagingWebSocket | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
@@ -114,6 +117,8 @@ export default function MessageScreen() {
       }
 
       setProfile(userProfile);
+      // Normalize profile picture URL to use current API base URL
+      setProfilePictureUri(normalizeProfilePictureUrl(userProfile.profilePicture));
     } catch (error: any) {
       console.error('Error loading profile:', error);
       Alert.alert('Error', error.message || 'Failed to load profile');
@@ -248,8 +253,19 @@ export default function MessageScreen() {
           activeOpacity={0.7}
         >
           <View style={styles.avatar}>
-            {profile.profilePicture ? (
-              <Text style={styles.avatarText}>📷</Text>
+            {profilePictureUri ? (
+              <Image
+                source={{ uri: profilePictureUri }}
+                style={styles.avatarImage}
+                onError={(error) => {
+                  console.error('Error loading profile picture:', error.nativeEvent.error);
+                  console.error('Failed URL:', profilePictureUri);
+                  setProfilePictureUri(null); // Fall back to placeholder
+                }}
+                onLoad={() => {
+                  console.log('Profile picture loaded successfully:', profilePictureUri);
+                }}
+              />
             ) : (
               <Text style={styles.avatarText}>
                 {(profile.name || profile.username || '?')[0].toUpperCase()}
@@ -352,6 +368,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   avatarText: {
     fontSize: 18,

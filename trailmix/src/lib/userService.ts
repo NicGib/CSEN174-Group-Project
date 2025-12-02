@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   Timestamp 
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import { User } from "firebase/auth";
 
 export type UserStatus = 'user' | 'wayfarer' | 'admin';
@@ -86,18 +86,46 @@ export const createUserProfile = async (
 
 /**
  * Update user's last login time
+ * Creates the document if it doesn't exist (for users created via Firebase Auth directly)
  */
 export const updateLastLogin = async (uid: string): Promise<void> => {
   try {
     const userRef = doc(db, 'users', uid);
-    await updateDoc(userRef, {
-      lastLoginAt: serverTimestamp(),
-      isActive: true
-    });
-    console.log('Last login updated for user:', uid);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      // Document exists, update it
+      await updateDoc(userRef, {
+        lastLoginAt: serverTimestamp(),
+        isActive: true
+      });
+      console.log('Last login updated for user:', uid);
+    } else {
+      // Document doesn't exist, create a basic profile
+      // This can happen if user was created via Firebase Auth directly
+      const user = auth.currentUser;
+      await setDoc(userRef, {
+        uid: uid,
+        email: user?.email || '',
+        name: user?.displayName || 'Unknown User',
+        username: `user_${uid.substring(0, 8)}`,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        isActive: true,
+        status: 'user',
+        totalHikes: 0,
+        totalDistance: 0,
+        achievements: [],
+        favoriteTrails: [],
+        interests: [],
+        profileDescription: ''
+      });
+      console.log('User profile created during login for:', uid);
+    }
   } catch (error) {
     console.error('Error updating last login:', error);
-    throw error;
+    // Don't throw - allow login to succeed even if Firestore update fails
+    // The backend will handle creating the profile if needed
   }
 };
 

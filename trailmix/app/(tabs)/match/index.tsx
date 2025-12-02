@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
   TextInput,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -24,6 +25,7 @@ import {
 import { getConversations, Conversation } from '@/src/lib/messagingService';
 import { auth } from '@/src/lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { normalizeProfilePictureUrl } from '@/src/utils/imageUpload';
 
 import { theme } from "@/app/theme";
 
@@ -102,16 +104,11 @@ export default function MatchScreen() {
         setMatches(data.matches);
         setCurrentIndex(0);
 
-        // Cache the results
-        try {
-          const cacheData: CachedMatches = {
-            matches: data.matches,
-            timestamp: Date.now(),
-          };
-          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-        } catch (e) {
-          console.log('Cache write error:', e);
-        }
+        // Cache the results (don't block UI)
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+          matches: data.matches,
+          timestamp: Date.now(),
+        })).catch(e => console.log('Cache write error:', e));
       } catch (error: any) {
         console.error('Error loading matches:', error);
         // Only show error if we don't have cached data
@@ -139,10 +136,17 @@ export default function MatchScreen() {
   // Load conversations and enhance matches with message info
   const loadConversationsAndEnhanceMatches = useCallback(async (matches: MutualMatch[]) => {
     const user = auth.currentUser;
-    if (!user) return matches;
+    if (!user) {
+      // If no user, just set matches without enhancement
+      setEnhancedMatches(matches.map(m => ({ ...m, hasNeverMessaged: true })));
+      return;
+    }
+
+    // Show matches immediately, enhance in background
+    setEnhancedMatches(matches.map(m => ({ ...m, hasNeverMessaged: true })));
 
     try {
-      // Load conversations
+      // Load conversations in parallel (don't block UI)
       const convs = await getConversations(user.uid);
       setConversations(convs);
 
@@ -200,11 +204,11 @@ export default function MatchScreen() {
         return bTime - aTime;
       });
 
+      // Update with enhanced matches
       setEnhancedMatches(enhanced);
     } catch (error: any) {
       console.error('Error loading conversations:', error);
-      // If conversations fail, just use matches as-is
-      setEnhancedMatches(matches.map(m => ({ ...m, hasNeverMessaged: true })));
+      // If conversations fail, matches are already set above
     }
   }, []);
 
@@ -220,9 +224,11 @@ export default function MatchScreen() {
             const cachedData: CachedMutualMatches = JSON.parse(cached);
             // Always show cached data if available (even if expired), then refresh in background
             if (cachedData.matches.length > 0) {
-              // Show cached data immediately
+              // Show cached data immediately (don't await enhancement)
               setMutualMatches(cachedData.matches);
-              await loadConversationsAndEnhanceMatches(cachedData.matches);
+              loadConversationsAndEnhanceMatches(cachedData.matches).catch(err => 
+                console.error('Error enhancing cached matches:', err)
+              );
               setLoadingMutualMatches(false);
               hasCachedData = true;
               // Always fetch fresh data in background (regardless of expiry)
@@ -244,18 +250,16 @@ export default function MatchScreen() {
       try {
         const matches = await getMutualMatches();
         setMutualMatches(matches);
-        await loadConversationsAndEnhanceMatches(matches);
+        // Enhance in background (don't block)
+        loadConversationsAndEnhanceMatches(matches).catch(err => 
+          console.error('Error enhancing matches:', err)
+        );
         
-        // Cache the results
-        try {
-          const cacheData: CachedMutualMatches = {
-            matches: matches,
-            timestamp: Date.now(),
-          };
-          await AsyncStorage.setItem(MUTUAL_MATCHES_CACHE_KEY, JSON.stringify(cacheData));
-        } catch (e) {
-          console.log('Cache write error:', e);
-        }
+        // Cache the results (don't block)
+        AsyncStorage.setItem(MUTUAL_MATCHES_CACHE_KEY, JSON.stringify({
+          matches: matches,
+          timestamp: Date.now(),
+        })).catch(e => console.log('Cache write error:', e));
       } catch (error: any) {
         console.error('Error loading mutual matches:', error);
         // Only show error if we don't have cached data
@@ -295,77 +299,110 @@ export default function MatchScreen() {
     }
   }, [viewMode, loadMutualMatches]);
 
+  // Debounced search query for better performance
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Filter mutual matches based on search query (use enhanced matches for sorting)
   const filteredMutualMatches = useMemo(() => {
     const matchesToFilter = enhancedMatches.length > 0 ? enhancedMatches : mutualMatches;
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       return matchesToFilter;
     }
-    const query = searchQuery.toLowerCase().trim();
+    const query = debouncedSearchQuery.toLowerCase().trim();
     return matchesToFilter.filter((match) => {
       const name = (match.name || '').toLowerCase();
       const username = (match.username || '').toLowerCase();
       return name.includes(query) || username.includes(query);
     });
-  }, [enhancedMatches, mutualMatches, searchQuery]);
+  }, [enhancedMatches, mutualMatches, debouncedSearchQuery]);
+
+  // Discover view - show cards (preload a few extra for smoother transitions)
+  // Must be before any conditional returns to follow Rules of Hooks
+  const visibleCards = useMemo(() => {
+    return matches.slice(currentIndex, currentIndex + 3);
+  }, [matches, currentIndex]);
 
   const handleSwipeLeft = useCallback(async () => {
     if (swiping || currentIndex >= matches.length) return;
 
     const currentMatch = matches[currentIndex];
+    
+    // Optimistic update: immediately move to next card
+    const previousIndex = currentIndex;
+    setCurrentIndex((prev) => prev + 1);
     setSwiping(true);
 
-    try {
-      await swipe(currentMatch.uid, 'pass');
-      setCurrentIndex((prev) => prev + 1);
-
-      // Load more if we're running low
-      if (currentIndex >= matches.length - 3) {
-        loadMatches(false);
-      }
-    } catch (error: any) {
-      console.error('Error swiping:', error);
-      Alert.alert('Error', error.message || 'Failed to record swipe');
-    } finally {
-      setSwiping(false);
+    // Preload more matches if running low (in background, don't wait)
+    if (previousIndex >= matches.length - 3) {
+      loadMatches(false).catch(err => console.error('Background load error:', err));
     }
+
+    // Record swipe in background (don't block UI)
+    swipe(currentMatch.uid, 'pass').catch((error: any) => {
+      console.error('Error swiping:', error);
+      // Revert optimistic update on error
+      setCurrentIndex(previousIndex);
+      Alert.alert('Error', error.message || 'Failed to record swipe');
+      setSwiping(false);
+    });
+    
+    // Clear swiping state after a short delay to allow animation
+    setTimeout(() => setSwiping(false), 300);
   }, [currentIndex, matches, swiping, loadMatches]);
 
   const handleSwipeRight = useCallback(async () => {
     if (swiping || currentIndex >= matches.length) return;
 
     const currentMatch = matches[currentIndex];
+    
+    // Optimistic update: immediately move to next card
+    const previousIndex = currentIndex;
+    setCurrentIndex((prev) => prev + 1);
     setSwiping(true);
 
-    try {
-      const result = await swipe(currentMatch.uid, 'like');
-      setCurrentIndex((prev) => prev + 1);
-
-      if (result.isMatch) {
-        Alert.alert('🎉 It\'s a Match!', `You and ${currentMatch.name || currentMatch.username} liked each other!`);
-        // Refresh mutual matches cache when a new match is made
-        // Clear cache to force refresh on next load
-        try {
-          await AsyncStorage.removeItem(MUTUAL_MATCHES_CACHE_KEY);
-        } catch (e) {
-          console.log('Error clearing mutual matches cache:', e);
-        }
-        // Refresh mutual matches if we're in matches view
-        if (viewMode === 'matches') {
-          loadMutualMatches(false); // Force refresh
-        }
-      }
-
-      // Load more if we're running low
-      if (currentIndex >= matches.length - 3) {
-        loadMatches(false);
-      }
-    } catch (error: any) {
-      console.error('Error swiping:', error);
-      Alert.alert('Error', error.message || 'Failed to record swipe');
-    } finally {
-      setSwiping(false);
+    // Preload more matches if running low (in background, don't wait)
+    if (previousIndex >= matches.length - 3) {
+      loadMatches(false).catch(err => console.error('Background load error:', err));
     }
+
+    // Record swipe in background
+    swipe(currentMatch.uid, 'like')
+      .then((result) => {
+        if (result.isMatch) {
+          Alert.alert('🎉 It\'s a Match!', `You and ${currentMatch.name || currentMatch.username} liked each other!`);
+          // Refresh mutual matches cache when a new match is made
+          AsyncStorage.removeItem(MUTUAL_MATCHES_CACHE_KEY).catch(e => 
+            console.log('Error clearing mutual matches cache:', e)
+          );
+          // Refresh mutual matches if we're in matches view
+          if (viewMode === 'matches') {
+            loadMutualMatches(false).catch(err => console.error('Error refreshing matches:', err));
+          }
+        }
+        setSwiping(false);
+      })
+      .catch((error: any) => {
+        console.error('Error swiping:', error);
+        // Revert optimistic update on error
+        setCurrentIndex(previousIndex);
+        Alert.alert('Error', error.message || 'Failed to record swipe');
+        setSwiping(false);
+      });
+    
+    // Clear swiping state after a short delay to allow animation
+    setTimeout(() => {
+      if (swiping) {
+        setSwiping(false);
+      }
+    }, 300);
   }, [currentIndex, matches, swiping, loadMatches, viewMode, loadMutualMatches]);
 
   const handleManualPass = useCallback(() => {
@@ -441,11 +478,11 @@ export default function MatchScreen() {
           </View>
         ) : filteredMutualMatches.length === 0 ? (
           <View style={styles.emptyContainer}>
-            {searchQuery.trim() ? (
+            {debouncedSearchQuery.trim() ? (
               <>
                 <Text style={styles.emptyTitle}>No matches found</Text>
                 <Text style={styles.emptyText}>
-                  No matches match "{searchQuery}"
+                  No matches match "{debouncedSearchQuery}"
                 </Text>
                 <TouchableOpacity
                   style={styles.refreshButton}
@@ -497,7 +534,14 @@ export default function MatchScreen() {
                     <View style={styles.matchAvatarContainer}>
                       <View style={styles.matchAvatar}>
                         {match.profilePicture ? (
-                          <Text style={styles.matchAvatarText}>📷</Text>
+                          <Image
+                            source={{ uri: normalizeProfilePictureUrl(match.profilePicture) || '' }}
+                            style={styles.matchAvatarImage}
+                            onError={(error) => {
+                              console.error('Error loading match profile picture:', error.nativeEvent.error);
+                              console.error('Failed URL:', normalizeProfilePictureUrl(match.profilePicture));
+                            }}
+                          />
                         ) : (
                           <Text style={styles.matchAvatarText}>
                             {(match.name || match.username || '?')[0].toUpperCase()}
@@ -663,9 +707,6 @@ export default function MatchScreen() {
       </View>
     );
   }
-
-  // Discover view - show cards
-  const visibleCards = matches.slice(currentIndex, currentIndex + 3);
 
   return (
     <View style={styles.container}>
@@ -892,6 +933,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary.medium,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  matchAvatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   matchAvatarText: {
     fontSize: 24,

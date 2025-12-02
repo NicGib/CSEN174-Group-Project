@@ -87,6 +87,8 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="person" size={size} color={color} />
           ),
+          // Ensure tapping the profile tab always goes to the index route
+          href: "/(tabs)/profile",
         }}
       />
       <Tabs.Screen

@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { auth } from '@/src/lib/firebase';
 import { getUserProfile, updateUserProfile, UserProfile } from '@/src/lib/userService';
 import { Timestamp } from 'firebase/firestore';
@@ -82,6 +83,22 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   }, []);
+
+  const router = useRouter();
+
+  // Ensure we're on the index route when the tab is focused
+  // This prevents showing someone else's profile when tapping the profile tab
+  useFocusEffect(
+    useCallback(() => {
+      // When the profile tab is focused, ensure we're showing the current user's profile
+      // This will reload the profile to make sure we have the latest data
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        // Always reload the current user's profile when the tab is focused
+        loadProfile();
+      }
+    }, [loadProfile])
+  );
 
   useEffect(() => {
     loadProfile();

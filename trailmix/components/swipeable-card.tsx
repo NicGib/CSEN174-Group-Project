@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { PotentialMatch } from '../src/lib/matchingService';
+import { normalizeProfilePictureUrl } from '../src/utils/imageUpload';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 120;
@@ -119,7 +120,14 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
       {...panResponder.panHandlers}
     >
       {match.profilePicture ? (
-        <Image source={{ uri: match.profilePicture }} style={styles.image} />
+        <Image 
+          source={{ uri: normalizeProfilePictureUrl(match.profilePicture) || '' }} 
+          style={styles.image}
+          onError={(error) => {
+            console.error('Error loading profile picture in swipeable card:', error.nativeEvent.error);
+            console.error('Failed URL:', normalizeProfilePictureUrl(match.profilePicture));
+          }}
+        />
       ) : (
         <View style={styles.placeholderImage}>
           <Text style={styles.placeholderText}>

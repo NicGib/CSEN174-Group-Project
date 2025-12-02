@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { listEvents, EventDetails, removeAttendee } from '@/src/api/events';
 import { getUserProfile, UserProfile } from '@/src/lib/userService';
 import { auth } from '@/src/lib/firebase';
+import { normalizeProfilePictureUrl } from '@/src/utils/imageUpload';
 
 import { theme } from "@/app/theme";
 
@@ -225,7 +227,14 @@ export default function EventAttendeesScreen() {
                 >
                   <View style={styles.attendeeAvatar}>
                     {profile.profilePicture ? (
-                      <Text style={styles.attendeeAvatarText}>📷</Text>
+                      <Image
+                        source={{ uri: normalizeProfilePictureUrl(profile.profilePicture) || '' }}
+                        style={styles.attendeeAvatarImage}
+                        onError={(error) => {
+                          console.error('Error loading attendee profile picture:', error.nativeEvent.error);
+                          console.error('Failed URL:', normalizeProfilePictureUrl(profile.profilePicture));
+                        }}
+                      />
                     ) : (
                       <Text style={styles.attendeeAvatarText}>
                         {(displayName)[0].toUpperCase()}
@@ -366,6 +375,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  attendeeAvatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   attendeeAvatarText: {
     fontSize: 20,
