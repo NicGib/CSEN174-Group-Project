@@ -4,6 +4,10 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import argparse
 
+from ..utils.error_handlers import handle_exceptions
+from ..utils.logging_utils import get_logger
+from ..exceptions import ValidationError
+
 # Import map functions using relative import
 from ...maps.download_map import (
     fetch_osm_data,
@@ -17,6 +21,7 @@ from ...maps.download_map import (
     sanitize_title
 )
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/maps", tags=["maps"])
 
 class MapRequest(BaseModel):
@@ -63,8 +68,8 @@ def generate_map(
         # Log data fetch results for debugging
         trail_count = len(osm_geojson.get("features", [])) if osm_geojson else 0
         trailhead_count = len(trailheads_geojson.get("features", [])) if trailheads_geojson else 0
-        print(f"[API] Map request: lat={lat}, lng={lng}, radius={radius}km")
-        print(f"[API] Fetched {trail_count} trails and {trailhead_count} trailheads")
+        logger.debug(f"Map request: lat={lat}, lng={lng}, radius={radius}km")
+        logger.debug(f"Fetched {trail_count} trails and {trailhead_count} trailheads")
         
         # Build map
         m = build_map(
@@ -108,8 +113,8 @@ def generate_map_post(request: MapRequest):
         # Log data fetch results for debugging
         trail_count = len(osm_geojson.get("features", [])) if osm_geojson else 0
         trailhead_count = len(trailheads_geojson.get("features", [])) if trailheads_geojson else 0
-        print(f"[API] Map request (POST): lat={request.lat}, lng={request.lng}, radius={request.radius}km")
-        print(f"[API] Fetched {trail_count} trails and {trailhead_count} trailheads")
+        logger.debug(f"Map request (POST): lat={request.lat}, lng={request.lng}, radius={request.radius}km")
+        logger.debug(f"Fetched {trail_count} trails and {trailhead_count} trailheads")
         
         # Build map
         m = build_map(

@@ -1,4 +1,3 @@
-import time
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta, timezone
@@ -7,9 +6,21 @@ import os
 from dotenv import load_dotenv
 from typing import List, Dict, Optional
 
+from ..utils.logging_utils import get_logger, log_user_action
+from ..utils.date_utils import parse_event_date, convert_firestore_timestamp_to_iso
+from ..exceptions import (
+    ValidationError,
+    NotFoundError,
+    ConflictError,
+    AuthorizationError,
+    DatabaseError
+)
+
 # Load environment variables
 env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "secrets", ".env")
 load_dotenv(env_path)
+
+logger = get_logger(__name__)
 
 # ─────────────────────────
 # 1. Firebase initialization
@@ -78,66 +89,26 @@ def create_hiking_event(title: str, location: str, event_date: str,
     Returns:
         Dict with success status and event details
     """
-    print(f"\nCreating hiking event: {title}")
+    logger.info(f"Creating hiking event: {title} by organizer {organizer_uid}")
     
     # Validation
     if not title.strip() or not location.strip():
-        raise ValueError("Title and location are required")
+        raise ValidationError("Title and location are required")
     
     if not organizer_uid or not organizer_uid.strip():
-        raise ValueError("Organizer UID is required")
+        raise ValidationError("Organizer UID is required")
     
     if max_attendees <= 0:
-        raise ValueError("Max attendees must be greater than 0")
+        raise ValidationError("Max attendees must be greater than 0")
     
     if difficulty_level not in ["beginner", "intermediate", "advanced"]:
-        raise ValueError("Difficulty level must be: beginner, intermediate, or advanced")
+        raise ValidationError("Difficulty level must be: beginner, intermediate, or advanced")
     
-    # Parse event date
+    # Parse event date using utility function
     try:
-        if isinstance(event_date, str):
-            if 'T' in event_date:
-                # ISO format with time - handle both timezone-aware and naive formats
-                if event_date.endswith('Z'):
-                    # UTC timezone, convert to naive
-                    date_str = event_date.replace('Z', '+00:00')
-                    event_datetime = datetime.fromisoformat(date_str)
-                    # Convert to naive datetime (remove timezone)
-                    event_datetime = event_datetime.replace(tzinfo=None)
-                elif '+' in event_date or event_date.count('-') > 2:
-                    # Has timezone offset, parse and convert to naive
-                    event_datetime = datetime.fromisoformat(event_date)
-                    if event_datetime.tzinfo is not None:
-                        event_datetime = event_datetime.replace(tzinfo=None)
-                else:
-                    # Naive datetime format (YYYY-MM-DDTHH:mm:ss)
-                    try:
-                        event_datetime = datetime.fromisoformat(event_date)
-                        # Ensure it's naive
-                        if event_datetime.tzinfo is not None:
-                            event_datetime = event_datetime.replace(tzinfo=None)
-                    except ValueError:
-                        # Fallback to strptime
-                        event_datetime = datetime.strptime(event_date, "%Y-%m-%dT%H:%M:%S")
-            else:
-                # Date only, assume 9:00 AM
-                event_datetime = datetime.strptime(event_date, "%Y-%m-%d")
-                event_datetime = event_datetime.replace(hour=9, minute=0, second=0)
-        else:
-            event_datetime = event_date
-            # Convert to naive if timezone-aware
-            if event_datetime.tzinfo is not None:
-                event_datetime = event_datetime.replace(tzinfo=None)
+        event_datetime = parse_event_date(event_date)
     except ValueError as e:
-        raise ValueError(f"Invalid date format. Use YYYY-MM-DD or ISO format: {e}")
-    
-    # Check if event is in the future
-    # Use UTC for comparison to avoid timezone issues
-    # The frontend sends UTC time, so we compare with UTC now
-    from datetime import timezone
-    utc_now = datetime.now(timezone.utc).replace(tzinfo=None)  # Convert to naive UTC
-    if event_datetime <= utc_now:
-        raise ValueError("Event date must be in the future")
+        raise ValidationError(str(e))
     
     # Create event object
     event = HikingEvent(
@@ -155,7 +126,12 @@ def create_hiking_event(title: str, location: str, event_date: str,
         doc_ref = db.collection("hiking_events").add(event.to_dict())
         event.event_id = doc_ref[1].id
         
-        print(f"Event created successfully with ID: {event.event_id}")
+        logger.info(f"Event created successfully with ID: {event.event_id}")
+        log_user_action(logger, organizer_uid, "create_event", {
+            "event_id": event.event_id,
+            "title": title,
+            "location": location
+        })
         
         return {
             "success": True,
@@ -173,8 +149,8 @@ def create_hiking_event(title: str, location: str, event_date: str,
         }
         
     except Exception as e:
-        print(f"Failed to create event: {e}")
-        raise RuntimeError(f"Event creation failed: {e}")
+        logger.error(f"Failed to create event: {e}", exc_info=True)
+        raise DatabaseError(f"Event creation failed: {e}")
 
 def add_attendee_to_event(event_id: str, user_uid: str, user_name: str = "") -> Dict:
     """
@@ -187,8 +163,13 @@ def add_attendee_to_event(event_id: str, user_uid: str, user_name: str = "") -> 
     
     Returns:
         Dict with success status and updated attendee list
+    
+    Raises:
+        NotFoundError: If event is not found
+        ConflictError: If user is already attending or event is full
+        DatabaseError: If database operation fails
     """
-    print(f"\nAdding attendee {user_name or user_uid} to event {event_id}")
+    logger.info(f"Adding attendee {user_name or user_uid} to event {event_id}")
     
     try:
         # Get event document
@@ -196,19 +177,19 @@ def add_attendee_to_event(event_id: str, user_uid: str, user_name: str = "") -> 
         event_doc = event_ref.get()
         
         if not event_doc.exists:
-            raise ValueError(f"Event {event_id} not found")
+            raise NotFoundError(f"Event {event_id} not found")
         
         event_data = event_doc.to_dict()
         current_attendees = event_data.get("attendees", [])
         
         # Check if user is already attending
         if user_uid in current_attendees:
-            raise ValueError("User is already attending this event")
+            raise ConflictError("User is already attending this event")
         
         # Check if event is full
         max_attendees = event_data.get("max_attendees", 20)
         if len(current_attendees) >= max_attendees:
-            raise ValueError(f"Event is full (max {max_attendees} attendees)")
+            raise ConflictError(f"Event is full (max {max_attendees} attendees)")
         
         # Add user to attendees list
         current_attendees.append(user_uid)
@@ -219,7 +200,11 @@ def add_attendee_to_event(event_id: str, user_uid: str, user_name: str = "") -> 
             "updated_at": firestore.SERVER_TIMESTAMP
         })
         
-        print(f"Successfully added {user_name or user_uid} to event")
+        logger.info(f"Successfully added {user_name or user_uid} to event {event_id}")
+        log_user_action(logger, user_uid, "add_attendee", {
+            "event_id": event_id,
+            "user_name": user_name
+        })
         
         return {
             "success": True,
@@ -229,9 +214,11 @@ def add_attendee_to_event(event_id: str, user_uid: str, user_name: str = "") -> 
             "timestamp": datetime.now().isoformat()
         }
         
+    except (NotFoundError, ConflictError):
+        raise
     except Exception as e:
-        print(f"Failed to add attendee: {e}")
-        raise RuntimeError(f"Failed to add attendee: {e}")
+        logger.error(f"Failed to add attendee: {e}", exc_info=True)
+        raise DatabaseError(f"Failed to add attendee: {e}")
 
 def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
     """
@@ -243,8 +230,12 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
     
     Returns:
         Dict with success status and updated attendee list
+    
+    Raises:
+        NotFoundError: If event is not found or user is not attending
+        DatabaseError: If database operation fails
     """
-    print(f"\nRemoving attendee {user_uid} from event {event_id}")
+    logger.info(f"Removing attendee {user_uid} from event {event_id}")
     
     try:
         # Get event document
@@ -252,14 +243,14 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
         event_doc = event_ref.get()
         
         if not event_doc.exists:
-            raise ValueError(f"Event {event_id} not found")
+            raise NotFoundError(f"Event {event_id} not found")
         
         event_data = event_doc.to_dict()
         current_attendees = event_data.get("attendees", [])
         
         # Check if user is attending
         if user_uid not in current_attendees:
-            raise ValueError("User is not attending this event")
+            raise NotFoundError("User is not attending this event")
         
         # Remove user from attendees list
         current_attendees.remove(user_uid)
@@ -270,7 +261,8 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
             "updated_at": firestore.SERVER_TIMESTAMP
         })
         
-        print(f"Successfully removed {user_uid} from event")
+        logger.info(f"Successfully removed {user_uid} from event {event_id}")
+        log_user_action(logger, user_uid, "remove_attendee", {"event_id": event_id})
         
         return {
             "success": True,
@@ -280,9 +272,11 @@ def remove_attendee_from_event(event_id: str, user_uid: str) -> Dict:
             "timestamp": datetime.now().isoformat()
         }
         
+    except NotFoundError:
+        raise
     except Exception as e:
-        print(f"Failed to remove attendee: {e}")
-        raise RuntimeError(f"Failed to remove attendee: {e}")
+        logger.error(f"Failed to remove attendee: {e}", exc_info=True)
+        raise DatabaseError(f"Failed to remove attendee: {e}")
 
 def delete_hiking_event_by_id(event_id: str) -> bool:
     """
@@ -303,10 +297,10 @@ def delete_hiking_event_by_id(event_id: str) -> bool:
             return False
         
         event_ref.delete()
-        print(f"Automatically deleted expired event {event_id}")
+        logger.info(f"Automatically deleted expired event {event_id}")
         return True
     except Exception as e:
-        print(f"Error deleting event {event_id}: {e}")
+        logger.error(f"Error deleting event {event_id}: {e}", exc_info=True)
         return False
 
 def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
@@ -319,8 +313,13 @@ def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
     
     Returns:
         Dict with success status
+    
+    Raises:
+        NotFoundError: If event is not found
+        AuthorizationError: If user is not the organizer
+        DatabaseError: If database operation fails
     """
-    print(f"\nDeleting event {event_id} by organizer {organizer_uid}")
+    logger.info(f"Deleting event {event_id} by organizer {organizer_uid}")
     
     try:
         # Get event document
@@ -328,19 +327,20 @@ def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
         event_doc = event_ref.get()
         
         if not event_doc.exists:
-            raise ValueError(f"Event {event_id} not found")
+            raise NotFoundError(f"Event {event_id} not found")
         
         event_data = event_doc.to_dict()
         event_organizer = event_data.get("organizer_uid", "")
         
         # Check if user is the organizer
         if event_organizer != organizer_uid:
-            raise ValueError("Only the event organizer can delete this event")
+            raise AuthorizationError("Only the event organizer can delete this event")
         
         # Delete the event document
         event_ref.delete()
         
-        print(f"Successfully deleted event {event_id}")
+        logger.info(f"Successfully deleted event {event_id}")
+        log_user_action(logger, organizer_uid, "delete_event", {"event_id": event_id})
         
         return {
             "success": True,
@@ -349,11 +349,28 @@ def delete_hiking_event(event_id: str, organizer_uid: str) -> Dict:
             "timestamp": datetime.now().isoformat()
         }
         
-    except ValueError as e:
-        raise e
+    except (NotFoundError, AuthorizationError):
+        raise
     except Exception as e:
-        print(f"Failed to delete event: {e}")
-        raise RuntimeError(f"Failed to delete event: {e}")
+        logger.error(f"Failed to delete event: {e}", exc_info=True)
+        raise DatabaseError(f"Failed to delete event: {e}")
+
+def _convert_event_timestamps(event_data: Dict) -> Dict:
+    """
+    Convert Firestore timestamps to ISO format strings.
+    
+    Args:
+        event_data: Event data dictionary from Firestore
+    
+    Returns:
+        Event data with timestamps converted to ISO strings
+    """
+    timestamp_fields = ["event_date", "created_at", "updated_at"]
+    for field in timestamp_fields:
+        if field in event_data and event_data[field] is not None:
+            event_data[field] = convert_firestore_timestamp_to_iso(event_data[field])
+    return event_data
+
 
 def get_event_details(event_id: str) -> Optional[Dict]:
     """
@@ -375,17 +392,12 @@ def get_event_details(event_id: str) -> Optional[Dict]:
         event_data["event_id"] = event_id
         
         # Convert Firestore timestamps to ISO strings
-        if "event_date" in event_data:
-            event_data["event_date"] = event_data["event_date"].isoformat()
-        if "created_at" in event_data:
-            event_data["created_at"] = event_data["created_at"].isoformat()
-        if "updated_at" in event_data:
-            event_data["updated_at"] = event_data["updated_at"].isoformat()
+        event_data = _convert_event_timestamps(event_data)
         
         return event_data
         
     except Exception as e:
-        print(f"Error getting event details: {e}")
+        logger.error(f"Error getting event details: {e}", exc_info=True)
         return None
 
 def list_all_events(limit: int = 50) -> List[Dict]:
@@ -407,19 +419,15 @@ def list_all_events(limit: int = 50) -> List[Dict]:
             event_data["event_id"] = event.id
             
             # Convert timestamps to ISO strings
-            if "event_date" in event_data:
-                event_data["event_date"] = event_data["event_date"].isoformat()
-            if "created_at" in event_data:
-                event_data["created_at"] = event_data["created_at"].isoformat()
-            if "updated_at" in event_data:
-                event_data["updated_at"] = event_data["updated_at"].isoformat()
+            event_data = _convert_event_timestamps(event_data)
             
             event_list.append(event_data)
         
+        logger.debug(f"Listed {len(event_list)} events")
         return event_list
         
     except Exception as e:
-        print(f"Error listing events: {e}")
+        logger.error(f"Error listing events: {e}", exc_info=True)
         return []
 
 def get_events_by_location(location: str) -> List[Dict]:
@@ -441,19 +449,15 @@ def get_events_by_location(location: str) -> List[Dict]:
             event_data["event_id"] = event.id
             
             # Convert timestamps to ISO strings
-            if "event_date" in event_data:
-                event_data["event_date"] = event_data["event_date"].isoformat()
-            if "created_at" in event_data:
-                event_data["created_at"] = event_data["created_at"].isoformat()
-            if "updated_at" in event_data:
-                event_data["updated_at"] = event_data["updated_at"].isoformat()
+            event_data = _convert_event_timestamps(event_data)
             
             event_list.append(event_data)
         
+        logger.debug(f"Found {len(event_list)} events at location: {location}")
         return event_list
         
     except Exception as e:
-        print(f"Error getting events by location: {e}")
+        logger.error(f"Error getting events by location: {e}", exc_info=True)
         return []
 
 # ─────────────────────────
@@ -639,11 +643,11 @@ def cleanup_expired_events() -> int:
                         deleted_count += 1
         
         if deleted_count > 0:
-            print(f"Cleanup: Deleted {deleted_count} expired event(s)")
+            logger.info(f"Cleanup: Deleted {deleted_count} expired event(s)")
         
         return deleted_count
     except Exception as e:
-        print(f"Error during event cleanup: {e}")
+        logger.error(f"Error during event cleanup: {e}", exc_info=True)
         return 0
 
 if __name__ == "__main__":

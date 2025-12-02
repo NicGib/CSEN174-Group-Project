@@ -5,7 +5,7 @@ from folium.plugins import MarkerCluster
 # ------------------------
 # CONFIG
 # ------------------------
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"  # swap to local if you self-host
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"  # can be swapped to a local instance if self-hosted
 USGS_TOPO_TILES = "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}"
 TRAILHEADS_URL = "https://carto.nationalmap.gov/arcgis/rest/services/structures/MapServer/61/query"
 

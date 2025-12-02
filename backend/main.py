@@ -120,7 +120,7 @@ app.add_middleware(CacheRequestBodyMiddleware)
 # Add route tracing middleware
 app.add_middleware(RouteTracingMiddleware)
 
-# CORS (tune for your frontend origin)
+# CORS configuration for the frontend origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ALLOW_ORIGINS", "*").split(","),
@@ -147,10 +147,7 @@ scheduler = BackgroundScheduler()
 async def startup_event():
     init_db()
     
-    # Log all registered routes (use print to ensure visibility)
-    print("=" * 80)
-    print("REGISTERED ROUTES:")
-    print("=" * 80)
+    # Log all registered routes
     logger.info("=" * 80)
     logger.info("REGISTERED ROUTES:")
     logger.info("=" * 80)
@@ -158,17 +155,13 @@ async def startup_event():
         if hasattr(route, 'methods') and hasattr(route, 'path'):
             methods = ', '.join(sorted(route.methods))
             route_info = f"  {methods:20} {route.path}"
-            print(route_info)
             logger.info(route_info)
         elif hasattr(route, 'path'):
             route_info = f"  {'*':20} {route.path}"
-            print(route_info)
             logger.info(route_info)
-    print("=" * 80)
     logger.info("=" * 80)
     
     # Log events router routes specifically
-    print("EVENTS ROUTER ROUTES:")
     logger.info("EVENTS ROUTER ROUTES:")
     delete_routes_found = []
     for route in events_router.router.routes:
@@ -176,23 +169,18 @@ async def startup_event():
             methods = ', '.join(sorted(route.methods))
             full_path = f"/api/v1{route.path}"
             route_info = f"  {methods:20} {full_path}"
-            print(route_info)
             logger.info(route_info)
             if 'DELETE' in route.methods and route.path == "/{event_id}":
                 delete_routes_found.append(full_path)
-                success_msg = f"    ✅ FOUND DELETE /{{event_id}} ROUTE!"
-                print(success_msg)
+                success_msg = f"    FOUND DELETE /{{event_id}} ROUTE!"
                 logger.info(success_msg)
-    print("=" * 80)
     logger.info("=" * 80)
     
     if not delete_routes_found:
-        error_msg = "❌ WARNING: DELETE /{event_id} route NOT FOUND in events router!"
-        print(error_msg)
+        error_msg = "WARNING: DELETE /{event_id} route NOT FOUND in events router!"
         logger.error(error_msg)
     else:
-        success_msg = f"✅ Found {len(delete_routes_found)} DELETE /{{event_id}} route(s)"
-        print(success_msg)
+        success_msg = f"Found {len(delete_routes_found)} DELETE /{{event_id}} route(s)"
         logger.info(success_msg)
     
     # Start the scheduler for automatic event cleanup

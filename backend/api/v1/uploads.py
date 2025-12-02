@@ -6,6 +6,11 @@ from fastapi.responses import FileResponse
 from typing import Optional
 import shutil
 
+from ..utils.error_handlers import handle_exceptions
+from ..utils.logging_utils import get_logger, log_user_action
+from ..exceptions import ValidationError, NotFoundError, AuthorizationError
+
+logger = get_logger(__name__)
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 # Directory to store uploaded files
@@ -62,6 +67,8 @@ async def upload_profile_picture(
         # Return the URL path (relative to /uploads)
         url_path = f"/api/v1/uploads/profile-pictures/{user_uid}/{unique_filename}"
         
+        log_user_action(logger, user_uid, "upload_profile_picture", {"filename": unique_filename})
+        
         return {
             "success": True,
             "url": url_path,
@@ -71,7 +78,7 @@ async def upload_profile_picture(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error uploading profile picture: {e}")
+        logger.error(f"Error uploading profile picture: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to upload profile picture: {str(e)}")
 
 
@@ -103,7 +110,7 @@ async def get_profile_picture(user_uid: str, filename: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error serving profile picture: {e}")
+        logger.error(f"Error serving profile picture: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to serve profile picture: {str(e)}")
 
 
@@ -126,6 +133,8 @@ async def delete_profile_picture(
             # Delete all files in the user's directory
             shutil.rmtree(user_dir)
         
+        log_user_action(logger, user_uid, "delete_profile_picture", {})
+        
         return {
             "success": True,
             "message": "Profile pictures deleted successfully"
@@ -133,6 +142,6 @@ async def delete_profile_picture(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting profile picture: {e}")
+        logger.error(f"Error deleting profile picture: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to delete profile picture: {str(e)}")
 
