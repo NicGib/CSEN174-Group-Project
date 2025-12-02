@@ -53,38 +53,6 @@ Trailmix is meant to be a community hiking platform, allowing for connection bet
 
 ---
 
-### Project Structure (Backend)
-
-backend/
-  api/
-    v1/
-      accounts.py      # Auth & profile endpoints
-      events.py        # Event CRUD & attendees
-      matching.py      # Matching & swipe APIs
-      messaging.py     # Messaging REST & WebSocket
-      uploads.py       # File upload/download
-      maps.py          # Map generation
-  accounts/
-    signups.py         # Signup, login, profiles, promotion
-  events/
-    schedule.py        # Event model, Firestore operations, cleanup
-  matching/
-    profile_matching.py # L2AP index + matching service
-    swipe_service.py    # Swipes & mutual matches
-  messaging/
-    database.py        # SQLAlchemy session / engine
-    models.py          # Message model
-    service.py         # Messaging service functions
-  schemas/
-    *.py               # Pydantic request/response models
-  utils/
-    exceptions.py      # Custom exception hierarchy
-    logging_utils.py   # Logging helpers
-    date_utils.py      # Date/time helpers
-    error_handlers.py  # Decorators for exception handling
-  main.py              # FastAPI app entrypoint
-  config.py            # Environment/config helpers---
-
 ### Prerequisites
 
 - Python 3.10+  
@@ -100,11 +68,12 @@ backend/
 ---
 
 ### Backend – Local Setup
-
+```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txtCreate `backend/secrets/.env`:
+```
 
 FIREBASE_API_KEY=your_firebase_api_key
 DATABASE_URL=postgresql://trailmix:trailmix_password@localhost:5432/trailmix_db
@@ -113,9 +82,11 @@ REDIS_URL=redis://localhost:6379/0Place `serviceAccountKey.json` in `backend/sec
 ---
 
 ### Running the Backend
-
+```bash
 cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000API docs will be available at:
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+API docs will be available at:
 
 - Swagger UI: `http://localhost:8000/docs`  
 - ReDoc: `http://localhost:8000/redoc`
@@ -123,9 +94,10 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000API docs will be available a
 ---
 
 ### Running Tests (Backend)
-
+```bash
 cd backend
 pytest---
+```
 
 ### Frontend (Quick Note)
 
@@ -138,14 +110,40 @@ Check the frontend config for the exact `API_BASE_URL`.
 ### Deployment (High‑Level)
 
 - Build and run via Docker (backend):
-
+```bash
 docker build -t trailmix-backend ./backend
 docker run -p 8000:8000 --env-file backend/secrets/.env trailmix-backend- Configure:
   - Environment variables on the server
   - Firebase credentials
   - Redis and database services
+```
+- Alternatively:
+  ```bash
+  start.bat
+  ```
+  or
+  ```bash
+  start.sh
+  ```
+  handles deployment automatically.
 
 ---
 
-### Running the code
-Alternatively, you can run the code through the ./start.bat and ./start.sh scripts for debugging, which create an all-in-one terminal for running the project. For this to be run, Docker, as well as Node.js must be installed on the local device, as well as Expo Go on the mobile device used for testing. Running the start script will open a terminal, which when selecting options 1-3, will create a QR code to test the app.
+### Alternative Startup (Debug Mode)
+
+Alternatively, you can start the project using the provided scripts:
+```bash
+./start.bat   # Windows
+./start.sh    # macOS / Linux
+```
+These scripts create an all-in-one terminal for running and debugging the project. <br>
+<br>
+Requirements
+- Before running the scripts, make sure you have:
+- Docker installed and running
+- Node.js installed on your local machine
+- Expo Go installed on the mobile device you’re using for testing
+
+What Happens: <br>
+Running either script will open a terminal interface. <br>
+When prompted, selecting options 1–3 will generate a QR code you can scan with Expo Go to test the app.
