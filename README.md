@@ -147,3 +147,9 @@ Requirements
 What Happens: <br>
 Running either script will open a terminal interface. <br>
 When prompted, selecting options 1–3 will generate a QR code you can scan with Expo Go to test the app.
+
+---
+
+### Acknowledgements
+
+This code was written with the aid of generative AI tools such as ChatGPT to aid in a cleaner workflow/codebase, all designs, systems, and psuedocode were written and conceptualized by humans before integrating an AI workflow.
